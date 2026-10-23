@@ -13,6 +13,7 @@ class WorkingHours(BaseModel):
 
 class Professional(BaseModel):
     id: UUID
+    name: str
     working_hours: list[WorkingHours]
 
     def periods_on(self, day: date) -> list[tuple[time, time]]:
@@ -21,11 +22,15 @@ class Professional(BaseModel):
 
 class Service(BaseModel):
     id: UUID
+    name: str
     duration_minutes: int
+    price_cents: int
 
 
 class Business(BaseModel):
     id: UUID
+    name: str
+    address: str
     timezone: str
     professionals: list[Professional]
     services: list[Service]

@@ -1,7 +1,7 @@
 from collections.abc import AsyncIterator
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Annotated
-from uuid import UUID
+from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -9,8 +9,8 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from booking import models, schemas
-from booking.catalog_client import CatalogClient, Professional, Service
+from booking import events, models, schemas
+from booking.catalog_client import Business, CatalogClient, Professional, Service
 from booking.domain import available_slots
 
 router = APIRouter()
@@ -31,13 +31,13 @@ Catalog = Annotated[CatalogClient, Depends(get_catalog)]
 
 async def load_schedule(
     catalog: CatalogClient, business_id: UUID, professional_id: UUID, service_id: UUID
-) -> tuple[ZoneInfo, Professional, Service]:
+) -> tuple[Business, Professional, Service]:
     business = await catalog.get_business(business_id)
     if business:
         professional = next((p for p in business.professionals if p.id == professional_id), None)
         service = next((s for s in business.services if s.id == service_id), None)
         if professional and service:
-            return ZoneInfo(business.timezone), professional, service
+            return business, professional, service
     raise HTTPException(404, "Estabelecimento, profissional ou serviço não encontrado")
 
 
@@ -57,9 +57,10 @@ async def get_availability(
     session: Session,
     catalog: Catalog,
 ) -> dict[str, list[datetime]]:
-    tz, professional, service = await load_schedule(
+    business, professional, service = await load_schedule(
         catalog, business_id, professional_id, service_id
     )
+    tz = ZoneInfo(business.timezone)
     day_start = datetime.combine(date, time(), tz)
     busy = await session.execute(
         select(models.Booking.starts_at, models.Booking.ends_at).where(
@@ -84,9 +85,10 @@ async def get_availability(
 async def create_booking(
     data: schemas.BookingIn, session: Session, catalog: Catalog
 ) -> models.Booking:
-    tz, professional, service = await load_schedule(
+    business, professional, service = await load_schedule(
         catalog, data.business_id, data.professional_id, data.service_id
     )
+    tz = ZoneInfo(business.timezone)
     day = data.starts_at.astimezone(tz).date()
     duration = timedelta(minutes=service.duration_minutes)
     open_slots = available_slots(
@@ -95,8 +97,8 @@ async def create_booking(
     if data.starts_at not in open_slots:
         raise HTTPException(422, "Horário fora do expediente do profissional ou já passou")
 
-    booking = models.Booking(**data.model_dump(), ends_at=data.starts_at + duration)
-    session.add(booking)
+    booking = models.Booking(id=uuid4(), **data.model_dump(), ends_at=data.starts_at + duration)
+    session.add_all([booking, events.booking_created(booking, business, professional, service)])
     try:
         await session.commit()
     except IntegrityError:
@@ -112,8 +114,11 @@ async def get_booking(booking_id: UUID, session: Session) -> models.Booking:
 @router.post("/bookings/{booking_id}/cancel", response_model=schemas.Booking)
 async def cancel_booking(booking_id: UUID, session: Session) -> models.Booking:
     booking = await get_booking_or_404(session, booking_id)
+    if booking.status == "cancelled":
+        return booking
     if booking.starts_at <= datetime.now(UTC):
         raise HTTPException(409, "Não é possível cancelar um atendimento que já começou")
     booking.status = "cancelled"
+    session.add(events.booking_cancelled(booking))
     await session.commit()
     return booking

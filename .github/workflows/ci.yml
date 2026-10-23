@@ -14,7 +14,7 @@ jobs:
       - run: uv sync --locked
       - run: uv run ruff check
       - run: uv run ruff format --check
-      - run: uv run mypy services/catalog/src services/booking/src
+      - run: uv run mypy services/catalog/src services/booking/src services/notification/src
       - run: uv run lint-imports
       - run: uv run pytest -v
 

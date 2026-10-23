@@ -7,12 +7,19 @@ line-length = 100
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "ASYNC", "RUF"]
 
+[tool.ruff.lint.per-file-ignores]
+"services/*/tests/*" = ["ASYNC110"]
+
 [tool.ruff.lint.isort]
-known-first-party = ["catalog", "booking"]
+known-first-party = ["catalog", "booking", "notification"]
 
 [tool.mypy]
 strict = true
 plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["aiokafka.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["services"]
@@ -21,14 +28,14 @@ asyncio_default_fixture_loop_scope = "session"
 asyncio_default_test_loop_scope = "session"
 
 [tool.importlinter]
-root_packages = ["booking"]
+root_packages = ["booking", "notification"]
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
-name = "Booking domain does not depend on frameworks"
+name = "Domain modules do not depend on frameworks"
 type = "forbidden"
-source_modules = ["booking.domain"]
-forbidden_modules = ["fastapi", "sqlalchemy", "httpx", "pydantic"]
+source_modules = ["booking.domain", "notification.domain"]
+forbidden_modules = ["fastapi", "sqlalchemy", "httpx", "pydantic", "aiokafka", "aio_pika"]
 
 [dependency-groups]
 dev = [
@@ -38,5 +45,5 @@ dev = [
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "ruff>=0.17.2",
-    "testcontainers[postgres]>=4.15.0",
+    "testcontainers[kafka,postgres,rabbitmq]>=4.15.0",
 ]
