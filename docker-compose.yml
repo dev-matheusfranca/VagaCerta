@@ -132,5 +132,19 @@ services:
 
   web:
     build: web
-    ports: ["8080:80"]
-    depends_on: [catalog, booking]
+
+  gateway:
+    image: traefik:v3.6
+    command:
+      - --entrypoints.web.address=:80
+      - --providers.file.filename=/etc/traefik/dynamic.yml
+      - --api.insecure=true
+      - --ping=true
+      - --accesslog=true
+    volumes: ["./gateway/dynamic.yml:/etc/traefik/dynamic.yml:ro"]
+    ports: ["8080:80", "8081:8080"]
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 3s
+      retries: 20
+    depends_on: [web, catalog, booking]

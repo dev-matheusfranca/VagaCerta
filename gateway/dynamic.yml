@@ -1,0 +1,46 @@
+http:
+  routers:
+    catalog:
+      rule: PathPrefix(`/api/catalog`)
+      service: catalog
+      middlewares: [strip-api, security-headers]
+    booking:
+      rule: PathPrefix(`/api/booking`)
+      service: booking
+      middlewares: [strip-api, security-headers]
+    booking-writes:
+      rule: PathPrefix(`/api/booking/bookings`) && Method(`POST`)
+      service: booking
+      middlewares: [write-rate-limit, strip-api, security-headers]
+    web:
+      rule: PathPrefix(`/`)
+      priority: 1
+      service: web
+      middlewares: [security-headers]
+
+  middlewares:
+    strip-api:
+      stripPrefixRegex:
+        regex: ["^/api/[a-z]+"]
+    # Limita gravações por IP: protege contra abuso sem afetar a navegação, que é só leitura.
+    write-rate-limit:
+      rateLimit:
+        average: 20
+        burst: 40
+        period: 1s
+    security-headers:
+      headers:
+        frameDeny: true
+        contentTypeNosniff: true
+        referrerPolicy: strict-origin-when-cross-origin
+
+  services:
+    catalog:
+      loadBalancer:
+        servers: [{ url: http://catalog:8000 }]
+    booking:
+      loadBalancer:
+        servers: [{ url: http://booking:8000 }]
+    web:
+      loadBalancer:
+        servers: [{ url: http://web:80 }]
