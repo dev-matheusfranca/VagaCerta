@@ -1,8 +1,8 @@
 <h1 align="center">VagaCerta</h1>
 
 <p align="center">
-  <strong>The right time slot, without the back-and-forth of chat messages.</strong><br />
-  Online scheduling for small service businesses, built as event-driven microservices.
+  <strong>O horário certo, sem troca de mensagens.</strong><br />
+  Agendamento online para pequenos negócios, construído com microsserviços orientados a eventos.
 </p>
 
 <p align="center">
@@ -11,201 +11,238 @@
   <img src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white" alt="FastAPI" />
   <img src="https://img.shields.io/badge/Apache%20Kafka-4-231F20?logo=apachekafka&logoColor=white" alt="Apache Kafka 4" />
   <img src="https://img.shields.io/badge/RabbitMQ-4-FF6600?logo=rabbitmq&logoColor=white" alt="RabbitMQ 4" />
+  <img src="https://img.shields.io/badge/Keycloak-26-4D4D4D?logo=keycloak&logoColor=white" alt="Keycloak 26" />
+  <img src="https://img.shields.io/badge/Traefik-3-24A1C1?logo=traefikproxy&logoColor=white" alt="Traefik 3" />
   <img src="https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL 17" />
   <img src="https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white" alt="Vue 3" />
-  <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT license" />
+  <img src="https://img.shields.io/badge/licen%C3%A7a-MIT-green" alt="Licença MIT" />
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/home.png" alt="VagaCerta home page" width="900" />
+  <img src="docs/screenshots/home.png" alt="Página inicial do VagaCerta" width="900" />
 </p>
 
-## Table of contents
+## Sumário
 
-- [About](#about)
-- [Features](#features)
-- [Screenshots](#screenshots)
-- [Architecture](#architecture)
-- [Tech stack](#tech-stack)
-- [Project structure](#project-structure)
-- [Getting started](#getting-started)
-- [API reference](#api-reference)
-- [Events](#events)
-- [Testing](#testing)
+- [Sobre o projeto](#sobre-o-projeto)
+- [Funcionalidades](#funcionalidades)
+- [Telas](#telas)
+- [Arquitetura](#arquitetura)
+- [Tecnologias](#tecnologias)
+- [Estrutura do projeto](#estrutura-do-projeto)
+- [Como rodar](#como-rodar)
+- [Roteiro de demonstração](#roteiro-de-demonstração)
+- [API](#api)
+- [Eventos](#eventos)
+- [Testes](#testes)
+- [Desempenho](#desempenho)
 - [Roadmap](#roadmap)
-- [Contributing](#contributing)
-- [License](#license)
-- [Author](#author)
+- [Como contribuir](#como-contribuir)
+- [Licença](#licença)
+- [Autor](#autor)
 
-## About
+## Sobre o projeto
 
-Barbershops, beauty studios, clinics and wellness spaces still book most appointments by hand, through chat
-apps. That leads to three everyday problems:
+Barbearias, salões, clínicas e espaços de bem-estar ainda marcam a maioria dos horários à mão, pelo
+WhatsApp. Isso gera três problemas do dia a dia:
 
-1. **Back-and-forth messages** just to find a time that works for both sides.
-2. **Double bookings** when two people are promised the same slot.
-3. **No-shows and empty chairs** when people forget their appointment or cancel without anyone finding out.
+1. **Troca de mensagens** só para achar um horário que sirva para os dois lados.
+2. **Horário duplicado** quando duas pessoas recebem a promessa da mesma vaga.
+3. **Faltas e cadeira vazia** quando alguém esquece ou cancela em cima da hora e ninguém fica sabendo.
 
-VagaCerta lets customers pick a service, a professional and a free slot in a few clicks, at any hour. The
-system **guarantees that a slot is never booked twice**, even when many people try to book it at the same
-moment, and keeps customers informed by e-mail: confirmation, cancellation and a reminder before the
-appointment.
+O VagaCerta deixa o cliente escolher serviço, profissional e horário em poucos cliques, a qualquer hora.
+O sistema **garante que um horário nunca é reservado duas vezes**, mesmo com muita gente tentando ao mesmo
+tempo; avisa por e-mail na confirmação, no cancelamento e antes do atendimento; e, quando alguém cancela,
+**oferece o horário automaticamente para a próxima pessoa da lista de espera**.
 
-The project grows in phases toward a full event-driven architecture. See the [roadmap](#roadmap).
+O projeto evolui em fases, até uma arquitetura completa orientada a eventos. Veja o [roadmap](#roadmap).
 
-## Features
+## Funcionalidades
 
-- Browse businesses, their services (duration and price) and their professionals.
-- Real-time availability, calculated from each professional's weekly working hours and existing bookings.
-- Booking with no double booking under concurrency, enforced by the database.
-- Cancellation that immediately returns the slot to the agenda.
-- E-mails for confirmation, cancellation and a reminder 24 hours before (or 2 hours, for last-minute
-  bookings), with branded HTML templates.
-- Reliable delivery: failed e-mails are retried with increasing delays and parked in a dead-letter queue.
-- Responsive web app and interactive API documentation (OpenAPI/Swagger) for every service.
+**Para o cliente**
 
-## Screenshots
+- Lista de estabelecimentos com serviços (duração e preço) e profissionais.
+- Disponibilidade em tempo real, calculada a partir do expediente de cada profissional.
+- Agendamento sem conflito, mesmo sob concorrência; cancelamento que libera o horário na hora.
+- E-mails de confirmação, cancelamento e lembrete (24 h antes, ou 2 h para quem agendou em cima da hora).
+- **Lista de espera:** em dia lotado, o cliente entra na fila; se alguém cancelar, o horário fica
+  reservado para ele por 15 minutos e chega um e-mail com o botão "Quero esse horário".
 
-| Choose service, professional and time | Booking confirmation |
+**Para o estabelecimento**
+
+- **Painel com login** (Keycloak): agenda do dia por profissional, totais, reservas da lista de espera e
+  cancelamento com um clique, que já repassa a vaga para a fila.
+
+**Por baixo**
+
+- Microsserviços com banco próprio, eventos no Kafka com outbox transacional e e-mails no RabbitMQ com
+  retry e dead-letter queue.
+- API gateway com rate limit, autenticação OIDC, tokens de serviço entre microsserviços.
+- Teste de carga no CI e documentação interativa (OpenAPI/Swagger) em todos os serviços.
+
+## Telas
+
+| Escolha de serviço, profissional e horário | Agendamento confirmado |
 |---|---|
-| <img src="docs/screenshots/business.png" alt="Business page with services, professionals and free slots" /> | <img src="docs/screenshots/booking.png" alt="Booking confirmation page" /> |
+| <img src="docs/screenshots/business.png" alt="Página do estabelecimento com serviços, profissionais e horários" /> | <img src="docs/screenshots/booking.png" alt="Página do agendamento confirmado" /> |
 
-<p align="center">
-  <img src="docs/screenshots/email.png" alt="Confirmation e-mail" width="480" /><br />
-  <em>Confirmation e-mail, as captured by Mailpit</em>
-</p>
+| Oferta da lista de espera | Painel do estabelecimento |
+|---|---|
+| <img src="docs/screenshots/offer.png" alt="Oferta de vaga com contagem regressiva" /> | <img src="docs/screenshots/painel.png" alt="Painel com a agenda do dia por profissional" /> |
 
-## Architecture
+| E-mail de confirmação | E-mail da lista de espera | Login (Keycloak com tema próprio) |
+|---|---|---|
+| <img src="docs/screenshots/email.png" alt="E-mail de confirmação" /> | <img src="docs/screenshots/offer-email.png" alt="E-mail de vaga liberada" /> | <img src="docs/screenshots/login.png" alt="Tela de login" /> |
+
+## Arquitetura
 
 ```mermaid
 flowchart LR
-    user((Customer)) --> web["Web app<br/>Vue 3 + nginx"]
-    web -->|/api/catalog| catalog["Catalog<br/>FastAPI"]
-    web -->|/api/booking| booking["Booking<br/>FastAPI"]
-    booking -->|REST| catalog
-    catalog --> catalogdb[(PostgreSQL<br/>catalog)]
-    booking --> bookingdb[(PostgreSQL<br/>bookings + outbox)]
-    bookingdb -.->|polls| relay["Outbox relay"]
+    client((Cliente)) --> gateway
+    owner((Dono)) --> gateway
+    gateway["API Gateway<br/>Traefik"] --> web["Web<br/>Vue 3"]
+    gateway -->|/auth| keycloak["Keycloak"]
+    gateway -->|/api/catalog| catalog["Catalog"]
+    gateway -->|/api/booking| booking["Booking"]
+    gateway -->|/api/waitlist| waitlist["Waitlist"]
+    booking -->|REST + cache| catalog
+    waitlist -->|"REST + token de serviço"| booking
+    booking -.->|outbox| relay["Outbox relay"]
     relay -->|booking.events| kafka{{Kafka}}
-    kafka --> notification["Notification<br/>consumer + scheduler"]
-    notification --> notificationdb[(PostgreSQL<br/>projection)]
-    notification -->|e-mail jobs| rabbitmq{{RabbitMQ}}
-    rabbitmq --> worker["E-mail worker"]
-    worker -->|SMTP| mail["Mailpit"]
+    kafka --> worker["Waitlist worker"]
+    worker -->|waitlist.events| kafka
+    kafka --> notification["Notification"]
+    notification <-->|tarefas de e-mail| rabbitmq{{RabbitMQ}}
+    notification -->|SMTP| mailpit["Mailpit"]
 ```
 
-| Component | Responsibility |
-|---|---|
-| **catalog** | Businesses, professionals, services and weekly working hours |
-| **booking** | Availability calculation, bookings and cancellations; writes domain events to an outbox |
-| **booking-relay** | Publishes outbox events to Kafka |
-| **notification** | Consumes booking events, schedules reminders and sends e-mails through RabbitMQ |
-| **web** | Customer-facing booking flow; nginx also routes `/api/*` to the services |
+Cada serviço tem o próprio banco PostgreSQL (omitidos no diagrama).
 
-### How a booking becomes an e-mail
+| Componente | Responsabilidade |
+|---|---|
+| **gateway** | Ponto único de entrada: roteamento, rate limit e cabeçalhos de segurança |
+| **catalog** | Estabelecimentos, profissionais, serviços e expediente semanal |
+| **booking** | Disponibilidade, agendamentos, reservas temporárias e agenda do dono; publica eventos via outbox |
+| **booking-relay** | Publica no Kafka os eventos gravados no outbox do Booking |
+| **waitlist** | Fila de espera, ofertas e confirmação (API) |
+| **waitlist-worker** | Orquestra a saga: consome cancelamentos, reserva horários, expira ofertas e publica eventos |
+| **notification** | Consome eventos, agenda lembretes e envia e-mails pelo RabbitMQ |
+| **keycloak** | Identidade: login do dono (PKCE), conta de serviço do Waitlist, papéis e grupos |
+| **web** | Front-end do cliente e do estabelecimento |
+
+### Lista de espera: a saga
 
 ```mermaid
 sequenceDiagram
-    participant C as Customer
+    participant D as Dono ou cliente
     participant B as Booking
-    participant DB as Booking DB
-    participant R as Outbox relay
     participant K as Kafka
+    participant W as Waitlist
     participant N as Notification
-    participant Q as RabbitMQ
-    participant S as SMTP
-    C->>B: POST /bookings
-    B->>DB: INSERT booking + outbox event (one transaction)
-    B-->>C: 201 Created
-    R->>DB: SELECT pending events FOR UPDATE SKIP LOCKED
-    R->>K: booking.created (key = booking id)
-    K->>N: booking.created
-    N->>N: ignore if the event id was already processed
-    N->>Q: enqueue confirmation e-mail
-    Q->>N: e-mail job
-    N->>S: send
-    Note over N,Q: on failure: retry after 5 s, 30 s and 2 min, then dead-letter queue
+    participant P as Próximo da fila
+    D->>B: cancela um agendamento
+    B->>K: booking.cancelled (com o horário liberado)
+    K->>W: booking.cancelled
+    W->>B: POST /holds (token de serviço)
+    B-->>W: horário reservado por 15 min
+    W->>K: waitlist.offer_created
+    K->>N: waitlist.offer_created
+    N->>P: e-mail "Uma vaga abriu"
+    alt confirma a tempo
+        P->>W: POST /offers/{id}/claim
+        W->>B: POST /bookings/{id}/confirm
+        B->>K: booking.created
+        K->>N: e-mail de confirmação
+    else a oferta expira
+        W->>B: POST /bookings/{id}/release (compensação)
+        W->>B: POST /holds para o próximo da fila
+    end
 ```
 
-### Design decisions
+### Decisões de arquitetura
 
-- **Database per service.** Each service owns its schema and migrations; they talk only through APIs and
-  events.
-- **Transactional outbox.** A booking and its event are stored in the same transaction, so an event is
-  published if and only if the change was committed. No dual writes.
-- **Kafka for facts, RabbitMQ for jobs.** Domain events go to Kafka, where any number of consumers can read
-  and replay them. E-mails are jobs that need retries and dead-lettering, which RabbitMQ handles natively.
-- **Idempotent consumer.** Kafka delivers at least once; Notification records each event id and ignores
-  duplicates.
-- **Event-carried state transfer.** `booking.created` carries the names Notification needs, and
-  Notification keeps its own projection, so it never calls Booking or Catalog back.
-- **Retries without plugins.** One RabbitMQ queue per attempt, each with a fixed TTL that dead-letters back
-  to the main queue: increasing delays without head-of-line blocking.
-- **Framework-free domain.** Availability and reminder rules are pure functions; an architecture test
-  forbids those modules from importing frameworks or brokers.
-- **Concurrency handled by PostgreSQL.** An exclusion constraint rejects overlapping bookings, so the API
-  returns `409 Conflict` to everyone but the first request.
+- **Banco por serviço.** Cada serviço é dono do seu schema e das suas migrações; eles só conversam por API
+  e eventos.
+- **Conflito resolvido no banco.** Uma exclusion constraint do PostgreSQL rejeita horários sobrepostos;
+  quem chega depois recebe `409 Conflict`.
+- **Outbox transacional.** Mudança e evento são gravados na mesma transação: sem escrita dupla.
+- **Kafka para fatos, RabbitMQ para tarefas.** Eventos de domínio ficam num log reprocessável; e-mails são
+  tarefas com retry e dead-letter.
+- **Consumidores idempotentes.** Cada evento processado é registrado; reentregas não repetem efeitos.
+- **Saga orquestrada com compensação.** A lista de espera reserva o horário antes de oferecê-lo e o libera
+  se a oferta expirar.
+- **Zero trust.** Todo serviço valida o JWT (assinatura, emissor, audiência, papéis); o Waitlist chama o
+  Booking com token próprio de serviço.
+- **Domínio sem framework.** Regras de disponibilidade e de lembrete são funções puras; um teste de
+  arquitetura impede que importem frameworks ou brokers.
+- **Otimização guiada por medição.** Um teste de carga apontou o gargalo e um cache curto do catálogo
+  triplicou a vazão.
 
-Each decision is recorded as an ADR:
+Cada decisão está registrada numa ADR:
 
-- [ADR 0001 — Python + FastAPI](docs/adr/0001-python-fastapi.md)
-- [ADR 0002 — Double booking is prevented by the database](docs/adr/0002-double-booking-exclusion-constraint.md)
-- [ADR 0003 — Transactional outbox for booking events](docs/adr/0003-transactional-outbox.md)
-- [ADR 0004 — Kafka for events, RabbitMQ for e-mail jobs](docs/adr/0004-kafka-events-rabbitmq-jobs.md)
-
-## Tech stack
-
-| Layer | Technologies |
+| ADR | Decisão |
 |---|---|
-| Services | Python 3.13, FastAPI, Pydantic v2, SQLAlchemy 2 (async), asyncpg, Alembic |
-| Messaging | Apache Kafka 4 (KRaft) with aiokafka, RabbitMQ 4 with aio-pika |
-| E-mail | aiosmtplib, HTML templates, Mailpit for local delivery |
-| Database | PostgreSQL 17 (`btree_gist` exclusion constraint, JSONB) |
-| Web | Vue 3, TypeScript, Vite, Tailwind CSS 4, Vue Router, Lucide icons |
-| Testing | pytest, Testcontainers (PostgreSQL, Kafka, RabbitMQ), Hypothesis, import-linter |
-| Code quality | ruff (lint + format), mypy (strict), vue-tsc |
-| Infrastructure | Docker, Docker Compose, nginx, Kafka UI, GitHub Actions |
-| Tooling | uv workspace (one lock file for all Python services) |
+| [0001](docs/adr/0001-python-e-fastapi.md) | Python e FastAPI nos serviços |
+| [0002](docs/adr/0002-conflito-de-horario-resolvido-no-banco.md) | O banco impede o conflito de horário |
+| [0003](docs/adr/0003-outbox-transacional.md) | Outbox transacional para os eventos |
+| [0004](docs/adr/0004-kafka-para-eventos-rabbitmq-para-tarefas.md) | Kafka para eventos, RabbitMQ para tarefas de e-mail |
+| [0005](docs/adr/0005-lista-de-espera-como-saga.md) | Lista de espera como saga orquestrada com reservas temporárias |
+| [0006](docs/adr/0006-keycloak-e-api-gateway.md) | Keycloak para identidade e Traefik como API gateway |
+| [0007](docs/adr/0007-cache-do-catalogo.md) | Cache curto do catálogo no Booking |
 
-## Project structure
+## Tecnologias
+
+| Camada | Tecnologias |
+|---|---|
+| Serviços | Python 3.13, FastAPI, Pydantic v2, SQLAlchemy 2 (assíncrono), asyncpg, Alembic |
+| Mensageria | Apache Kafka 4 (KRaft) com aiokafka, RabbitMQ 4 com aio-pika |
+| Identidade | Keycloak 26 (OIDC, PKCE, client credentials), PyJWT, keycloak-js |
+| Gateway | Traefik 3 (roteamento, rate limit, cabeçalhos de segurança) |
+| E-mail | aiosmtplib, templates HTML, Mailpit para entrega local |
+| Banco de dados | PostgreSQL 17 (exclusion constraint com `btree_gist`, JSONB) |
+| Front-end | Vue 3, TypeScript, Vite, Tailwind CSS 4, Vue Router, ícones Lucide |
+| Testes | pytest, Testcontainers (PostgreSQL, Kafka, RabbitMQ), Hypothesis, import-linter, k6 |
+| Qualidade | ruff (lint e formatação), mypy (strict), vue-tsc |
+| Infraestrutura | Docker, Docker Compose, nginx, Kafka UI, GitHub Actions |
+| Ferramentas | Workspace do uv (um lock file para todos os serviços Python) |
+
+## Estrutura do projeto
 
 ```
 VagaCerta/
 ├── services/
-│   ├── Dockerfile              # shared image for the Python services
-│   ├── catalog/
-│   │   ├── migrations/         # Alembic migrations
-│   │   ├── src/catalog/        # models, schemas, API routes and seed data
-│   │   └── tests/
-│   ├── booking/
-│   │   ├── migrations/         # bookings, anti-overlap constraint and outbox
-│   │   ├── src/booking/        # domain rules, API, events and outbox relay
-│   │   └── tests/
-│   └── notification/
-│       ├── migrations/         # processed events and bookings projection
-│       ├── src/notification/   # Kafka consumer, reminder scheduler, e-mails and RabbitMQ worker
-│       └── tests/
-├── web/                        # Vue 3 front-end, served by nginx in Docker
+│   ├── Dockerfile              # imagem compartilhada dos serviços Python
+│   ├── catalog/                # estabelecimentos, profissionais e serviços
+│   ├── booking/                # disponibilidade, agendamentos, reservas, outbox e relay
+│   ├── waitlist/               # lista de espera, ofertas e worker da saga
+│   └── notification/           # consumidor de eventos, lembretes, e-mails e worker do RabbitMQ
+│       ├── migrations/         # (em cada serviço) migrações do Alembic
+│       ├── src/                # (em cada serviço) código do serviço
+│       └── tests/              # (em cada serviço) testes
+├── web/                        # front-end em Vue 3, servido por nginx no Docker
+├── gateway/dynamic.yml         # rotas e middlewares do Traefik
+├── keycloak/                   # realm versionado e tema da tela de login
+├── load/booking.js             # teste de carga com k6
 ├── docs/
-│   ├── adr/                    # architecture decision records
+│   ├── adr/                    # registros de decisões de arquitetura
 │   └── screenshots/
-├── .github/workflows/ci.yml    # lint, types, tests and builds on every push
+├── .github/workflows/ci.yml    # lint, tipos, testes, build e teste de carga a cada push
 ├── docker-compose.yml
 ├── CHANGELOG.md
-└── pyproject.toml              # uv workspace and tooling configuration
+└── pyproject.toml              # workspace do uv e configuração das ferramentas
 ```
 
-## Getting started
+## Como rodar
 
-### Prerequisites
+### Pré-requisitos
 
-| Tool | Version | Needed for |
+| Ferramenta | Versão | Para quê |
 |---|---|---|
-| [Docker](https://docs.docker.com/get-docker/) with Compose | 24+ | Running everything, integration tests |
-| [uv](https://docs.astral.sh/uv/) | 0.13+ | Local development of the services |
-| [Node.js](https://nodejs.org/) | 24+ | Local development of the web app |
+| [Docker](https://docs.docker.com/get-docker/) com Compose | 24+ | Rodar tudo e os testes de integração |
+| [uv](https://docs.astral.sh/uv/) | 0.13+ | Desenvolver os serviços localmente |
+| [Node.js](https://nodejs.org/) | 24+ | Desenvolver o front-end localmente |
 
-### Run with Docker (recommended)
+### Com Docker (recomendado)
 
 ```bash
 git clone git@github.com:dev-matheusfranca/VagaCerta.git
@@ -213,109 +250,170 @@ cd VagaCerta
 docker compose up --build
 ```
 
-| URL | What |
+Na primeira vez, a subida leva alguns minutos (imagens e Keycloak). As migrações rodam sozinhas, e os
+dados de exemplo são criados: quatro estabelecimentos e um dia lotado na Clínica Sorriso Pleno.
+
+| Endereço | O que é |
 |---|---|
-| http://localhost:8080 | Web app |
-| http://localhost:8025 | Mailpit — every e-mail the system sends |
-| http://localhost:8090 | Kafka UI — topics and `booking.events` messages |
-| http://localhost:15672 | RabbitMQ management — e-mail, retry and dead-letter queues (`guest` / `guest`) |
-| http://localhost:8001/docs | Catalog API docs |
-| http://localhost:8002/docs | Booking API docs |
+| http://localhost:8080 | App (tudo passa pelo gateway) |
+| http://localhost:8080/painel | Painel do estabelecimento |
+| http://localhost:8025 | Mailpit: todos os e-mails enviados |
+| http://localhost:8090 | Kafka UI: tópicos `booking.events` e `waitlist.events` |
+| http://localhost:15672 | RabbitMQ: filas de e-mail, retry e dead-letter (`guest` / `guest`) |
+| http://localhost:8081 | Dashboard do Traefik |
+| http://localhost:8080/auth/admin | Console do Keycloak (`admin` / `admin`) |
+| http://localhost:8001/docs · :8002/docs · :8003/docs | Swagger do Catalog, Booking e Waitlist |
 
-Migrations run automatically, and the catalog is seeded with four sample businesses on first start. Book a
-slot in the web app and the confirmation e-mail shows up in Mailpit a moment later.
+**Usuários de demonstração** (senha `vagacerta`):
 
-### Run locally
+| Usuário | Papel |
+|---|---|
+| `clinica` | Dona da Clínica Sorriso Pleno |
+| `barbearia` | Dono da Barbearia Navalha de Ouro |
+| `admin` | Administrador do catálogo |
 
-Start the infrastructure with Docker, then run each part in its own terminal:
+> As credenciais e o segredo do cliente de serviço são de demonstração e ficam no realm versionado. Num
+> ambiente real, viriam de um cofre de segredos.
+
+### Localmente, sem containers para os serviços
+
+Suba só a infraestrutura com Docker e rode cada processo num terminal:
 
 ```bash
-docker compose up -d catalog-db booking-db notification-db kafka rabbitmq mailpit
+docker compose up -d catalog-db booking-db waitlist-db notification-db kafka rabbitmq mailpit keycloak
 uv sync
 
-cd services/catalog && uv run alembic upgrade head && uv run python -m catalog.seed && cd ../..
-cd services/booking && uv run alembic upgrade head && cd ../..
-cd services/notification && uv run alembic upgrade head && cd ../..
+(cd services/catalog && uv run alembic upgrade head && uv run python -m catalog.seed)
+(cd services/booking && uv run alembic upgrade head)
+(cd services/waitlist && uv run alembic upgrade head)
+(cd services/notification && uv run alembic upgrade head)
 
 uv run uvicorn catalog.main:app --port 8001 --reload
 uv run uvicorn booking.main:app --port 8002 --reload
+uv run uvicorn waitlist.main:app --port 8003 --reload
 uv run python -m booking.outbox_relay
+uv run python -m waitlist.worker
 uv run python -m notification
 
 npm --prefix web install
 npm --prefix web run dev
 ```
 
-The web app runs at http://localhost:5173 and proxies `/api/*` to the services.
+O front roda em http://localhost:5173 e encaminha `/api/*` para os serviços.
 
-### Environment variables
+### Variáveis de ambiente
 
-| Service | Variable | Default |
+| Serviço | Variável | Padrão |
 |---|---|---|
 | catalog | `DATABASE_URL` | `postgresql+asyncpg://vagacerta:vagacerta@localhost:5433/catalog` |
+| catalog, booking | `KEYCLOAK_ISSUER` | `http://localhost:8080/auth/realms/vagacerta` |
+| catalog, booking | `KEYCLOAK_JWKS_URL` | `<KEYCLOAK_ISSUER>/protocol/openid-connect/certs` |
 | booking | `DATABASE_URL` | `postgresql+asyncpg://vagacerta:vagacerta@localhost:5434/booking` |
 | booking | `CATALOG_URL` | `http://localhost:8001` |
 | booking relay | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9094` |
+| waitlist | `DATABASE_URL` | `postgresql+asyncpg://vagacerta:vagacerta@localhost:5436/waitlist` |
+| waitlist | `CATALOG_URL` / `BOOKING_URL` | `http://localhost:8001` / `http://localhost:8002` |
+| waitlist | `KEYCLOAK_TOKEN_URL` | `http://localhost:8080/auth/realms/vagacerta/protocol/openid-connect/token` |
+| waitlist | `CLIENT_ID` / `CLIENT_SECRET` | `waitlist-service` / `waitlist-dev-secret` |
+| waitlist | `OFFER_MINUTES` | `15` |
 | notification | `DATABASE_URL` | `postgresql+asyncpg://vagacerta:vagacerta@localhost:5435/notification` |
-| notification | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9094` |
 | notification | `RABBITMQ_URL` | `amqp://guest:guest@localhost:5672/` |
 | notification | `SMTP_HOST` / `SMTP_PORT` | `localhost` / `1025` |
-| notification | `WEB_URL` | `http://localhost:8080` (used in e-mail links) |
+| notification | `WEB_URL` | `http://localhost:8080` (usada nos links dos e-mails) |
+| relay, waitlist, notification | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9094` |
 
-## API reference
+## Roteiro de demonstração
 
-Full interactive documentation is available at `/docs` on each service.
+Com a stack no ar (`docker compose up --build`):
 
-### Catalog — `:8001`
+1. **Agende um horário.** Em http://localhost:8080, escolha um estabelecimento, serviço, profissional e
+   horário. O e-mail de confirmação aparece no [Mailpit](http://localhost:8025).
+2. **Entre na lista de espera.** Abra a Clínica Sorriso Pleno, escolha a Dra. Fernanda Lima e o próximo
+   dia útil: ele está lotado. Entre na fila com um e-mail qualquer.
+3. **Cancele como dono.** Em http://localhost:8080/painel, entre com `clinica` / `vagacerta`, vá até esse
+   dia e cancele um horário.
+4. **Receba a oferta.** No Mailpit chega "Uma vaga abriu". O botão "Quero esse horário" abre a oferta
+   com contagem regressiva; ao confirmar, o agendamento é criado e chega o e-mail de confirmação. No
+   painel, enquanto a oferta está aberta, o horário aparece como "Oferta da fila".
+5. **Veja os bastidores.** Os eventos no [Kafka UI](http://localhost:8090) e as filas no
+   [RabbitMQ](http://localhost:15672).
 
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/businesses` | List businesses |
-| `POST` | `/businesses` | Create a business |
-| `GET` | `/businesses/{id}` | Business with its professionals, working hours and services |
-| `POST` | `/businesses/{id}/professionals` | Add a professional with weekly working hours |
-| `POST` | `/businesses/{id}/services` | Add a service with duration and price |
+## API
 
-### Booking — `:8002`
+A documentação interativa completa fica em `/docs` em cada serviço.
 
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/availability` | Free start times for a professional, service and date |
-| `POST` | `/bookings` | Book a slot |
-| `GET` | `/bookings/{id}` | Booking details |
-| `POST` | `/bookings/{id}/cancel` | Cancel a booking; the slot becomes available again |
+### Catalog — `:8001` · `/api/catalog`
 
-Example:
+| Método | Endpoint | Acesso | Descrição |
+|---|---|---|---|
+| `GET` | `/businesses` | público | Lista os estabelecimentos |
+| `GET` | `/businesses/{id}` | público | Estabelecimento com profissionais, expediente e serviços |
+| `POST` | `/businesses` | `admin` | Cria um estabelecimento |
+| `POST` | `/businesses/{id}/professionals` | `admin` | Adiciona um profissional com o expediente semanal |
+| `POST` | `/businesses/{id}/services` | `admin` | Adiciona um serviço com duração e preço |
+
+### Booking — `:8002` · `/api/booking`
+
+| Método | Endpoint | Acesso | Descrição |
+|---|---|---|---|
+| `GET` | `/availability` | público | Horários livres de um profissional, serviço e dia |
+| `POST` | `/bookings` | público | Agenda um horário |
+| `GET` | `/bookings/{id}` | público | Detalhes do agendamento |
+| `POST` | `/bookings/{id}/cancel` | público | Cancela; o horário volta a ficar livre |
+| `GET` | `/businesses/{id}/agenda?date=` | `owner` do estabelecimento | Agenda do dia, com reservas da lista de espera |
+| `POST` | `/holds` | `booking-holds` | Reserva temporária de um horário (saga) |
+| `POST` | `/bookings/{id}/confirm` | `booking-holds` | Transforma a reserva em agendamento |
+| `POST` | `/bookings/{id}/release` | `booking-holds` | Libera a reserva (compensação) |
+
+### Waitlist — `:8003` · `/api/waitlist`
+
+| Método | Endpoint | Acesso | Descrição |
+|---|---|---|---|
+| `POST` | `/entries` | público | Entra na lista de espera de um dia; responde a posição na fila |
+| `GET` | `/offers/{id}` | link do e-mail | Detalhes da oferta |
+| `POST` | `/offers/{id}/claim` | link do e-mail | Confirma a oferta antes de expirar |
+
+Exemplo:
 
 ```bash
-curl -X POST http://localhost:8002/bookings \
+curl -X POST http://localhost:8080/api/booking/bookings \
   -H "Content-Type: application/json" \
   -d '{
-    "business_id": "<business id>",
-    "professional_id": "<professional id>",
-    "service_id": "<service id>",
+    "business_id": "6384a99a-146a-4b11-8e9b-db99b79e8fd2",
+    "professional_id": "<id do profissional>",
+    "service_id": "<id do serviço>",
     "starts_at": "2026-10-27T10:00:00-03:00",
     "customer_name": "Maria Silva",
     "customer_email": "maria@example.com"
   }'
 ```
 
-| Status | Meaning |
+| Status | Significado |
 |---|---|
-| `201 Created` | Slot booked |
-| `404 Not Found` | Unknown business, professional or service |
-| `409 Conflict` | The slot was just taken by someone else |
-| `422 Unprocessable Entity` | Invalid data, time outside working hours or in the past |
+| `201 Created` | Horário agendado |
+| `401` / `403` | Sem token, token inválido ou sem o papel necessário |
+| `404 Not Found` | Estabelecimento, profissional ou serviço inexistente |
+| `409 Conflict` | O horário acabou de ser reservado por outra pessoa |
+| `422 Unprocessable Entity` | Dados inválidos, horário fora do expediente ou no passado |
+| `429 Too Many Requests` | Limite de gravações por cliente atingido (gateway) |
 
-## Events
+Para chamar os endpoints protegidos, gere um token com um usuário de demonstração:
 
-Booking publishes to the `booking.events` Kafka topic. Messages are keyed by booking id, so all events of a
-booking stay in order.
+```bash
+curl -s http://localhost:8080/auth/realms/vagacerta/protocol/openid-connect/token \
+  -d grant_type=password -d client_id=vagacerta-web -d username=admin -d password=vagacerta
+```
 
-| Type | Published when | `data` |
-|---|---|---|
-| `booking.created` | A booking is confirmed | Booking times, customer, business, professional and service details |
-| `booking.cancelled` | A confirmed booking is cancelled | `booking_id` |
+## Eventos
+
+| Tópico | Tipo | Publicado quando | `data` |
+|---|---|---|---|
+| `booking.events` | `booking.created` | Um agendamento é confirmado | Horário, cliente, estabelecimento, profissional e serviço |
+| `booking.events` | `booking.cancelled` | Um agendamento confirmado é cancelado | Id do agendamento, profissional e horário liberado |
+| `waitlist.events` | `waitlist.offer_created` | Um horário é reservado para alguém da fila | Dados da oferta, prazo e link de confirmação |
+
+As mensagens usam o id do agendamento (ou da oferta) como chave, então os eventos de um mesmo agendamento
+chegam em ordem.
 
 ```json
 {
@@ -338,88 +436,108 @@ booking stay in order.
 }
 ```
 
-## Testing
+## Testes
 
 ```bash
-uv run pytest            # all tests (integration tests start containers with Docker)
-uv run lint-imports      # architecture rules
-uv run mypy services/catalog/src services/booking/src services/notification/src
+uv run pytest            # 58 testes (os de integração sobem containers com Docker)
+uv run lint-imports      # regras de arquitetura
+uv run mypy services/catalog/src services/booking/src services/notification/src services/waitlist/src
 uv run ruff check && uv run ruff format --check
-npm --prefix web run build   # type-checks the web app
+npm --prefix web run build                      # checa os tipos do front-end
+docker compose --profile load run --rm k6       # teste de carga contra a stack no ar
 ```
 
-| Kind | What it proves |
+| Tipo | O que prova |
 |---|---|
-| Unit | Availability and reminder rules; e-mail content, local times and HTML escaping |
-| Property-based | Hypothesis generates random agendas; no slot ever overlaps busy time or leaves working hours |
-| Integration | API + real PostgreSQL through Testcontainers, with the real migrations |
-| Concurrency | 10 simultaneous requests for the same slot: exactly one `201`, nine `409` |
-| Outbox | Events are written only when the booking is committed; the relay publishes each one once, in order, to a real Kafka |
-| Messaging | Against a real RabbitMQ: e-mails are delivered, retried with backoff and dead-lettered after the last attempt |
-| Idempotency | A redelivered event sends no second e-mail; a reminder is sent exactly once and never for cancelled bookings |
-| Architecture | Domain modules stay independent of frameworks and brokers |
+| Unitário | Regras de disponibilidade e de lembrete; conteúdo dos e-mails, fuso horário e escape de HTML |
+| Baseado em propriedades | O Hypothesis gera agendas aleatórias: nenhum horário oferecido sobrepõe outro ou sai do expediente |
+| Integração | API com PostgreSQL real via Testcontainers, usando as migrações de verdade |
+| Concorrência | 10 requisições simultâneas para o mesmo horário: exatamente um `201` e nove `409` |
+| Outbox | O evento só existe se o agendamento foi gravado; o relay publica cada um uma vez, em ordem, num Kafka real |
+| Mensageria | Num RabbitMQ real: e-mails entregues, repetidos com backoff e enviados à dead-letter após a última tentativa |
+| Idempotência | Evento reentregue não gera segundo e-mail nem segunda oferta; lembrete sai uma vez só |
+| Saga | Oferta ao primeiro da fila, pulo de quem não cabe no horário, confirmação e compensação por expiração |
+| Segurança | Tokens RS256 assinados no teste: sem token `401`, papel errado `403`, token forjado `401`, dono de outro estabelecimento `403` |
+| Arquitetura | Os módulos de domínio não dependem de frameworks nem de brokers |
+| Carga (k6) | 50 pessoas disputam o mesmo horário: só uma consegue; a disponibilidade mantém p95 abaixo de 500 ms |
 
-Every push to `main` and `develop`, and every pull request, runs the whole suite on GitHub Actions, plus
-the web build and the Docker image builds.
+A cada push na `main` e na `develop`, e em todo pull request, o GitHub Actions roda a suíte, o build do
+front e um job de ponta a ponta que sobe a stack completa com Docker Compose e executa o k6.
+
+## Desempenho
+
+O cenário de carga ([`load/booking.js`](load/booking.js)) passa pelo gateway: 20 usuários consultam
+disponibilidade sem pausa enquanto 50 tentam agendar o mesmo horário ao mesmo tempo.
+
+| Métrica | Sem cache | Com cache do catálogo |
+|---|---|---|
+| Vazão | 47 req/s | **135 req/s** |
+| p95 da disponibilidade | 935 ms | **~300 ms** |
+| Agendamentos criados na disputa | 1 de 50 | 1 de 50 |
+
+O teste mostrou que cada consulta chamava o Catalog por HTTP. Um cache de 30 segundos no Booking resolveu
+o gargalo ([ADR 0007](docs/adr/0007-cache-do-catalogo.md)). Números medidos no Docker Desktop de uma
+máquina de desenvolvimento.
 
 ## Roadmap
 
-- [x] **Phase 1** — Catalog and Booking services, real-time availability, double-booking prevention,
-      web app, CI
-- [x] **Phase 2** — Domain events on Kafka with the transactional outbox; Notification service with
-      e-mails on RabbitMQ (retries, dead-letter queue) and reminders
-- [ ] **Phase 3** — Waitlist service (saga): a cancelled slot is offered to the next person in line;
-      Keycloak authentication, API gateway and k6 load tests
-- [ ] **Phase 4** — OpenTelemetry tracing, Prometheus, Grafana and Loki; Pact contract tests; Analytics
-      service with CQRS
-- [ ] **Phase 5** — Kubernetes with kind and Helm; natural-language booking with a local LLM (Ollama) and
-      an MCP server
+- [x] **Fase 1** — Catalog e Booking, disponibilidade em tempo real, prevenção de conflito, front-end e CI
+- [x] **Fase 2** — Eventos no Kafka com outbox transacional; serviço Notification com e-mails no RabbitMQ
+      (retry e dead-letter queue) e lembretes
+- [x] **Fase 3** — Lista de espera como saga; Keycloak com painel do estabelecimento e token de serviço;
+      API gateway com Traefik; teste de carga com k6 no CI
+- [ ] **Fase 4** — Observabilidade com OpenTelemetry, Prometheus, Grafana e Loki; testes de contrato com
+      Pact; serviço de Analytics com CQRS
+- [ ] **Fase 5** — Kubernetes com kind e Helm; agendamento em linguagem natural com LLM local (Ollama) e
+      servidor MCP
 
-See the [changelog](CHANGELOG.md) for what changed in each release.
+O que mudou em cada versão está no [CHANGELOG](CHANGELOG.md).
 
-## Contributing
+## Como contribuir
 
-### Branching model
+### Fluxo de branches
 
-The repository follows **Gitflow**:
+O repositório segue o **Gitflow**:
 
-| Branch | Purpose |
+| Branch | Para quê |
 |---|---|
-| `main` | Production-ready code. Every merge is a release, tagged `vX.Y.Z` |
-| `develop` | Integration branch for the next release |
-| `feature/<name>` | New work, branched from `develop` and merged back through a pull request |
-| `release/<version>` | Release preparation, merged into `main` and `develop` |
-| `hotfix/<name>` | Urgent fixes, branched from `main` and merged into `main` and `develop` |
+| `main` | Código pronto para produção. Cada merge é uma versão, com tag `vX.Y.Z` |
+| `develop` | Integração da próxima versão |
+| `feature/<nome>` | Trabalho novo, criado a partir da `develop` e integrado de volta por pull request |
+| `release/<versão>` | Preparação da versão, integrada na `main` e na `develop` |
+| `hotfix/<nome>` | Correção urgente, criada a partir da `main` e integrada na `main` e na `develop` |
 
-### Commit messages
+### Mensagens de commit
 
-Commits follow [Conventional Commits](https://www.conventionalcommits.org/):
+Os commits seguem o [Conventional Commits](https://www.conventionalcommits.org/pt-br/):
 
 ```
-<type>(<optional scope>): <short summary in the imperative>
+<tipo>(<escopo opcional>): <resumo curto no imperativo>
 ```
 
-| Type | Use for |
+| Tipo | Uso |
 |---|---|
-| `feat` | A new feature |
-| `fix` | A bug fix |
-| `test` | Adding or changing tests |
-| `refactor` | Code change that neither fixes a bug nor adds a feature |
-| `docs` | Documentation only |
-| `ci` / `build` | Pipeline, Docker or dependency changes |
-| `chore` | Maintenance tasks |
+| `feat` | Nova funcionalidade |
+| `fix` | Correção de bug |
+| `perf` | Melhoria de desempenho |
+| `test` | Testes novos ou alterados |
+| `refactor` | Mudança de código que não corrige bug nem adiciona funcionalidade |
+| `docs` | Só documentação |
+| `ci` / `build` | Pipeline, Docker ou dependências |
+| `chore` | Manutenção |
 
-Examples: `feat(booking): add waitlist offer endpoint`, `fix(web): keep selected day when switching service`.
+Exemplos do histórico: `feat(waitlist): add the waitlist service with an offer saga`,
+`perf(booking): cache catalog lookups for 30 seconds`.
 
-Before opening a pull request, make sure the [test commands](#testing) pass.
+Antes de abrir um pull request, confira se os [comandos de teste](#testes) passam.
 
-## License
+## Licença
 
-Distributed under the MIT License. See [LICENSE](LICENSE) for details.
+Distribuído sob a licença MIT. Veja [LICENSE](LICENSE).
 
-## Author
+## Autor
 
-**Matheus França Santana** — Back-end developer
+**Matheus França Santana** — Desenvolvedor back-end
 
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-matheusfrancasantana-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/matheusfrancasantana/)
 [![GitHub](https://img.shields.io/badge/GitHub-dev--matheusfranca-181717?logo=github&logoColor=white)](https://github.com/dev-matheusfranca)
