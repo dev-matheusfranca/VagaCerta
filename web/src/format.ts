@@ -17,9 +17,12 @@ export function category(key: string) {
   )
 }
 
-export function price(cents: number) {
-  if (cents === 0) return 'Grátis'
+export function currency(cents: number) {
   return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
+export function price(cents: number) {
+  return cents === 0 ? 'Grátis' : currency(cents)
 }
 
 export function time(iso: string, timeZone: string) {

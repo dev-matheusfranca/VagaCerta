@@ -9,8 +9,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from waitlist import saga
-from waitlist.booking_client import BookingClient
-from waitlist.config import BOOKING_URL, DATABASE_URL, KAFKA_BOOTSTRAP_SERVERS, OFFER_MINUTES
+from waitlist.booking_client import BookingClient, booking_client
+from waitlist.config import DATABASE_URL, KAFKA_BOOTSTRAP_SERVERS, OFFER_MINUTES
 from waitlist.events import BOOKING_TOPIC, BookingCancelled
 from waitlist.models import OutboxEvent
 
@@ -66,7 +66,7 @@ async def relay_outbox(sessionmaker: Sessionmaker, producer: AIOKafkaProducer) -
 
 async def main() -> None:
     sessionmaker = async_sessionmaker(create_async_engine(DATABASE_URL), expire_on_commit=False)
-    booking = BookingClient(BOOKING_URL)
+    booking = booking_client()
     consumer = AIOKafkaConsumer(
         BOOKING_TOPIC,
         bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,

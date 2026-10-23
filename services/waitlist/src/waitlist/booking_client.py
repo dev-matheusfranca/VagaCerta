@@ -1,9 +1,12 @@
+import time
+from collections.abc import AsyncGenerator
 from datetime import datetime
 from uuid import UUID
 
 import httpx
 from pydantic import AwareDatetime, BaseModel
 
+from waitlist.config import BOOKING_URL, CLIENT_ID, CLIENT_SECRET, KEYCLOAK_TOKEN_URL
 from waitlist.models import Entry
 
 
@@ -14,9 +17,36 @@ class Hold(BaseModel):
     hold_expires_at: AwareDatetime
 
 
+class ClientCredentials(httpx.Auth):
+    """Token de serviço do Keycloak (client credentials), reaproveitado até perto de expirar."""
+
+    def __init__(self, token_url: str, client_id: str, client_secret: str) -> None:
+        self._token_url = token_url
+        self._form = {
+            "grant_type": "client_credentials",
+            "client_id": client_id,
+            "client_secret": client_secret,
+        }
+        self._token = ""
+        self._expires_at = 0.0
+
+    async def async_auth_flow(
+        self, request: httpx.Request
+    ) -> AsyncGenerator[httpx.Request, httpx.Response]:
+        if time.monotonic() >= self._expires_at:
+            response = yield httpx.Request("POST", self._token_url, data=self._form)
+            await response.aread()
+            response.raise_for_status()
+            token = response.json()
+            self._token = token["access_token"]
+            self._expires_at = time.monotonic() + token["expires_in"] - 30
+        request.headers["Authorization"] = f"Bearer {self._token}"
+        yield request
+
+
 class BookingClient:
-    def __init__(self, base_url: str) -> None:
-        self._http = httpx.AsyncClient(base_url=base_url, timeout=5)
+    def __init__(self, http: httpx.AsyncClient) -> None:
+        self._http = http
 
     async def hold(self, entry: Entry, starts_at: datetime, minutes: int) -> Hold | None:
         """Reserva o horário para a pessoa da fila; None se ele não serve para ela."""
@@ -51,3 +81,8 @@ class BookingClient:
             return False
         response.raise_for_status()
         return True
+
+
+def booking_client() -> BookingClient:
+    auth = ClientCredentials(KEYCLOAK_TOKEN_URL, CLIENT_ID, CLIENT_SECRET)
+    return BookingClient(httpx.AsyncClient(base_url=BOOKING_URL, timeout=5, auth=auth))

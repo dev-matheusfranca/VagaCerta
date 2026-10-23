@@ -1,3 +1,5 @@
+import { authorization } from './auth'
+
 export interface WorkingHours {
   weekday: number
   start: string
@@ -41,7 +43,7 @@ export interface Booking {
   ends_at: string
   customer_name: string
   customer_email: string
-  status: 'confirmed' | 'cancelled'
+  status: 'confirmed' | 'cancelled' | 'held' | 'released'
 }
 
 export type NewBooking = Omit<Booking, 'id' | 'ends_at' | 'status'>
@@ -85,7 +87,10 @@ export class ApiError extends Error {
 }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, { ...init, headers: { 'Content-Type': 'application/json' } })
+  const response = await fetch(url, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', ...init?.headers },
+  })
   const body = await response.json()
   if (!response.ok) {
     const message = typeof body.detail === 'string' ? body.detail : 'Verifique os dados informados'
@@ -110,6 +115,10 @@ export const api = {
       body: JSON.stringify(data),
     }),
   offer: (id: string) => request<Offer>(`/api/waitlist/offers/${id}`),
+  agenda: async (businessId: string, date: string) =>
+    request<Booking[]>(`/api/booking/businesses/${businessId}/agenda?date=${date}`, {
+      headers: await authorization(),
+    }),
   claimOffer: (id: string) =>
     request<Offer>(`/api/waitlist/offers/${id}/claim`, { method: 'POST' }),
 }
