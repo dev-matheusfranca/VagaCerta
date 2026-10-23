@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
+import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
@@ -23,7 +24,8 @@ PATIENTS = (
 
 
 async def main() -> None:
-    clinic = await CatalogClient(CATALOG_URL).get_business(CLINIC_ID)
+    catalog = CatalogClient(httpx.AsyncClient(base_url=CATALOG_URL, timeout=5))
+    clinic = await catalog.get_business(CLINIC_ID)
     assert clinic, "rode o seed do catálogo antes"
     dentist = next(p for p in clinic.professionals if p.name == "Dra. Fernanda Lima")
     evaluation = next(s for s in clinic.services if s.name == "Avaliação")
