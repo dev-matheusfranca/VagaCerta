@@ -23,6 +23,7 @@ class Booking(Base):
     starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     status: Mapped[str] = mapped_column(String(20), default="confirmed")
+    hold_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class OutboxEvent(Base):

@@ -43,4 +43,13 @@ def booking_created(
 
 
 def booking_cancelled(booking: Booking) -> OutboxEvent:
-    return _event(booking, "booking.cancelled", {})
+    return _event(
+        booking,
+        "booking.cancelled",
+        {
+            "business_id": str(booking.business_id),
+            "professional_id": str(booking.professional_id),
+            "starts_at": booking.starts_at.isoformat(),
+            "ends_at": booking.ends_at.isoformat(),
+        },
+    )

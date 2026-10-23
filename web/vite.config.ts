@@ -10,6 +10,10 @@ export default defineConfig({
         target: 'http://localhost:8001',
         rewrite: (path) => path.replace(/^\/api\/catalog/, ''),
       },
+      '/api/waitlist': {
+        target: 'http://localhost:8003',
+        rewrite: (path) => path.replace(/^\/api\/waitlist/, ''),
+      },
       '/api/booking': {
         target: 'http://localhost:8002',
         rewrite: (path) => path.replace(/^\/api\/booking/, ''),

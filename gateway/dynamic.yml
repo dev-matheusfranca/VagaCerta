@@ -12,6 +12,14 @@ http:
       rule: PathPrefix(`/api/booking/bookings`) && Method(`POST`)
       service: booking
       middlewares: [write-rate-limit, strip-api, security-headers]
+    waitlist:
+      rule: PathPrefix(`/api/waitlist`)
+      service: waitlist
+      middlewares: [strip-api, security-headers]
+    waitlist-writes:
+      rule: PathPrefix(`/api/waitlist`) && Method(`POST`)
+      service: waitlist
+      middlewares: [write-rate-limit, strip-api, security-headers]
     web:
       rule: PathPrefix(`/`)
       priority: 1
@@ -41,6 +49,9 @@ http:
     booking:
       loadBalancer:
         servers: [{ url: http://booking:8000 }]
+    waitlist:
+      loadBalancer:
+        servers: [{ url: http://waitlist:8000 }]
     web:
       loadBalancer:
         servers: [{ url: http://web:80 }]

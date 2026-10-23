@@ -6,7 +6,7 @@ from string import Template
 from zoneinfo import ZoneInfo
 
 from notification.config import WEB_URL
-from notification.events import BookingDetails
+from notification.events import BookingDetails, OfferDetails
 
 HTML = Template(files("notification").joinpath("email.html").read_text("utf-8"))
 SENDER = formataddr(("VagaCerta", "agendamentos@vagacerta.dev"))
@@ -52,12 +52,37 @@ def cancellation(booking: BookingDetails) -> EmailMessage:
     )
 
 
+def offer(details: OfferDetails) -> EmailMessage:
+    tz = ZoneInfo(details.timezone)
+    start, deadline = details.starts_at.astimezone(tz), details.expires_at.astimezone(tz)
+    return _email(
+        details,
+        subject=f"Uma vaga abriu: {details.service_name} {WEEKDAYS[start.weekday()]} às "
+        f"{start:%H:%M}",
+        label="Vaga liberada",
+        title=f"Uma vaga abriu pra você, {_first_name(details)}!",
+        intro=f"Alguém cancelou e guardamos este horário para você até as {deadline:%H:%M}. "
+        "Confirme antes disso, ou ele passa para a próxima pessoa da fila.",
+        accent="#b45309",
+        cta="Quero esse horário",
+        link=f"{WEB_URL}/ofertas/{details.offer_id}",
+    )
+
+
 def _first_name(booking: BookingDetails) -> str:
     return booking.customer_name.split()[0]
 
 
 def _email(
-    booking: BookingDetails, *, subject: str, label: str, title: str, intro: str, accent: str
+    booking: BookingDetails,
+    *,
+    subject: str,
+    label: str,
+    title: str,
+    intro: str,
+    accent: str,
+    cta: str = "Ver agendamento",
+    link: str | None = None,
 ) -> EmailMessage:
     tz = ZoneInfo(booking.timezone)
     start, end = booking.starts_at.astimezone(tz), booking.ends_at.astimezone(tz)
@@ -70,7 +95,7 @@ def _email(
         "Local": f"{booking.business_name} · {booking.business_address}",
         "Valor": f"R$ {price:.2f}".replace(".", ",") if price else "Grátis",
     }
-    link = f"{WEB_URL}/agendamentos/{booking.booking_id}"
+    link = link or f"{WEB_URL}/agendamentos/{booking.booking_id}"
 
     message = EmailMessage()
     message["From"] = SENDER
@@ -93,6 +118,7 @@ def _email(
             intro=escape(intro),
             rows=rows,
             link=escape(link),
+            cta=escape(cta),
         ),
         subtype="html",
     )

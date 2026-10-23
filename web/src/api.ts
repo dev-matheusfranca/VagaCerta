@@ -46,6 +46,35 @@ export interface Booking {
 
 export type NewBooking = Omit<Booking, 'id' | 'ends_at' | 'status'>
 
+export interface WaitlistEntryIn {
+  business_id: string
+  professional_id: string
+  service_id: string
+  day: string
+  customer_name: string
+  customer_email: string
+}
+
+export interface Offer {
+  id: string
+  booking_id: string
+  status: 'pending' | 'claimed' | 'expired'
+  starts_at: string
+  ends_at: string
+  expires_at: string
+  entry: {
+    customer_name: string
+    details: {
+      business_name: string
+      business_address: string
+      timezone: string
+      professional_name: string
+      service_name: string
+      price_cents: number
+    }
+  }
+}
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -75,4 +104,12 @@ export const api = {
   booking: (id: string) => request<Booking>(`/api/booking/bookings/${id}`),
   cancelBooking: (id: string) =>
     request<Booking>(`/api/booking/bookings/${id}/cancel`, { method: 'POST' }),
+  joinWaitlist: (data: WaitlistEntryIn) =>
+    request<{ id: string; position: number }>('/api/waitlist/entries', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  offer: (id: string) => request<Offer>(`/api/waitlist/offers/${id}`),
+  claimOffer: (id: string) =>
+    request<Offer>(`/api/waitlist/offers/${id}/claim`, { method: 'POST' }),
 }

@@ -10,7 +10,13 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from testcontainers.community.postgres import PostgresContainer
 
 from notification.consumer import handle_event
-from notification.events import BookingCancelled, BookingCreated, BookingRef
+from notification.events import (
+    BookingCancelled,
+    BookingCreated,
+    BookingRef,
+    OfferCreated,
+    OfferDetails,
+)
 from notification.models import Booking
 from notification.scheduler import send_due_reminders
 
@@ -90,3 +96,19 @@ async def test_cancelled_booking_is_notified_and_not_reminded(session, details):
 
     assert await send_due_reminders(session, mailbox, details.starts_at) == 0
     assert mailbox == ["Agendamento confirmado", "Agendamento cancelado"]
+
+
+async def test_waitlist_offer_is_e_mailed(session, details):
+    mailbox = Mailbox()
+    offer = OfferDetails(
+        **details.model_dump(), offer_id=uuid4(), expires_at=details.starts_at - timedelta(days=1)
+    )
+
+    await handle_event(
+        OfferCreated(event_id=uuid4(), type="waitlist.offer_created", data=offer),
+        session,
+        mailbox,
+        details.starts_at - timedelta(days=2),
+    )
+
+    assert mailbox == ["Uma vaga abriu"]

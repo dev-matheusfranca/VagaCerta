@@ -61,6 +61,42 @@ services:
       booking: { condition: service_healthy }
       kafka: { condition: service_healthy }
 
+  waitlist-db:
+    <<: *postgres
+    environment:
+      POSTGRES_USER: vagacerta
+      POSTGRES_PASSWORD: vagacerta
+      POSTGRES_DB: waitlist
+    ports: ["5436:5432"]
+
+  waitlist:
+    build: &waitlist-build
+      context: .
+      dockerfile: services/Dockerfile
+      args: { SERVICE: waitlist }
+    environment: &waitlist-env
+      DATABASE_URL: postgresql+asyncpg://vagacerta:vagacerta@waitlist-db:5432/waitlist
+      CATALOG_URL: http://catalog:8000
+      BOOKING_URL: http://booking:8000
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      OFFER_MINUTES: 15
+    ports: ["8003:8000"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/openapi.json')"]
+      interval: 3s
+      retries: 20
+    depends_on:
+      waitlist-db: { condition: service_healthy }
+
+  waitlist-worker:
+    build: *waitlist-build
+    command: python -m waitlist.worker
+    environment: *waitlist-env
+    depends_on:
+      waitlist: { condition: service_healthy }
+      booking: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+
   notification-db:
     <<: *postgres
     environment:
@@ -147,4 +183,4 @@ services:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
       interval: 3s
       retries: 20
-    depends_on: [web, catalog, booking]
+    depends_on: [web, catalog, booking, waitlist]
