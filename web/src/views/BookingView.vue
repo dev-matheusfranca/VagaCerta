@@ -6,6 +6,7 @@ import {
   CircleX,
   Clock,
   LoaderCircle,
+  Mail,
   MapPin,
   Store,
   Tag,
@@ -97,6 +98,13 @@ async function cancel() {
                 ? `Tudo certo, ${booking.customer_name.split(' ')[0]}. Te esperamos!`
                 : 'O horário foi liberado para outras pessoas.'
             }}
+          </p>
+          <p
+            class="mt-4 inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-ink/60 ring-1 ring-ink/5"
+          >
+            <Mail class="size-3.5 text-brand-600" />
+            {{ confirmed ? 'Confirmação enviada' : 'Aviso enviado' }} para
+            {{ booking.customer_email }}
           </p>
         </header>
 
