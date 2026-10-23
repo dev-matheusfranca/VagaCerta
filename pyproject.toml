@@ -11,7 +11,7 @@ select = ["E", "F", "I", "UP", "B", "ASYNC", "RUF"]
 "services/*/tests/*" = ["ASYNC110"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["catalog", "booking", "notification"]
+known-first-party = ["catalog", "booking", "notification", "waitlist"]
 
 [tool.mypy]
 strict = true

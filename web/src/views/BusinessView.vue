@@ -3,6 +3,7 @@ import { ArrowLeft, CalendarX2, Check, Clock, LoaderCircle, MapPin } from 'lucid
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { api, ApiError, type BusinessDetail } from '../api'
+import WaitlistCard from '../components/WaitlistCard.vue'
 import { category, initials, longDate, price, time } from '../format'
 
 const props = defineProps<{ id: string }>()
@@ -248,13 +249,18 @@ async function submit() {
             <div v-if="!slots" class="grid grid-cols-3 gap-2 sm:grid-cols-5">
               <span v-for="i in 10" :key="i" class="h-11 animate-pulse rounded-xl bg-canvas" />
             </div>
-            <p
-              v-else-if="!slots.length"
-              class="flex items-center gap-3 rounded-2xl bg-canvas p-4 text-sm text-ink/60"
-            >
-              <CalendarX2 class="size-5 shrink-0" /> Nenhum horário livre neste dia. Que tal outra
-              data?
-            </p>
+            <div v-else-if="!slots.length" class="space-y-3">
+              <p class="flex items-center gap-3 rounded-2xl bg-canvas p-4 text-sm text-ink/60">
+                <CalendarX2 class="size-5 shrink-0" /> Nenhum horário livre neste dia.
+              </p>
+              <WaitlistCard
+                :key="`${professionalId}-${serviceId}-${day}`"
+                :business-id="id"
+                :professional-id="professionalId"
+                :service-id="serviceId"
+                :day="day"
+              />
+            </div>
             <div v-else class="grid grid-cols-3 gap-2 sm:grid-cols-5">
               <button
                 v-for="s in slots"

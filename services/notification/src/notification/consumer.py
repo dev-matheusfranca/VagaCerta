@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from notification import emails
 from notification.domain import remind_at
-from notification.events import BookingCreated, BookingDetails, BookingEvent, booking_event
+from notification.events import BookingCreated, BookingDetails, Event, OfferCreated, event_adapter
 from notification.models import Booking, ProcessedEvent
 
 logger = logging.getLogger(__name__)
@@ -18,7 +18,7 @@ Publish = Callable[[EmailMessage], Awaitable[None]]
 
 
 async def handle_event(
-    event: BookingEvent, session: AsyncSession, publish: Publish, now: datetime
+    event: Event, session: AsyncSession, publish: Publish, now: datetime
 ) -> None:
     # O Kafka entrega pelo menos uma vez: o id do evento garante que cada um é tratado uma vez só.
     if await session.get(ProcessedEvent, event.event_id):
@@ -33,6 +33,8 @@ async def handle_event(
             )
         )
         await publish(emails.confirmation(event.data))
+    elif isinstance(event, OfferCreated):
+        await publish(emails.offer(event.data))
     elif booking := await session.get(Booking, event.data.booking_id):
         booking.cancelled_at = now
         await publish(emails.cancellation(BookingDetails.model_validate(booking.details)))
@@ -44,7 +46,7 @@ async def consume(
 ) -> None:
     async for record in consumer:
         try:
-            event = booking_event.validate_json(record.value)
+            event = event_adapter.validate_json(record.value)
         except ValidationError:
             logger.warning("Skipping unknown event at offset %s", record.offset)
         else:

@@ -1,3 +1,5 @@
+import { authorization } from './auth'
+
 export interface WorkingHours {
   weekday: number
   start: string
@@ -41,10 +43,39 @@ export interface Booking {
   ends_at: string
   customer_name: string
   customer_email: string
-  status: 'confirmed' | 'cancelled'
+  status: 'confirmed' | 'cancelled' | 'held' | 'released'
 }
 
 export type NewBooking = Omit<Booking, 'id' | 'ends_at' | 'status'>
+
+export interface WaitlistEntryIn {
+  business_id: string
+  professional_id: string
+  service_id: string
+  day: string
+  customer_name: string
+  customer_email: string
+}
+
+export interface Offer {
+  id: string
+  booking_id: string
+  status: 'pending' | 'claimed' | 'expired'
+  starts_at: string
+  ends_at: string
+  expires_at: string
+  entry: {
+    customer_name: string
+    details: {
+      business_name: string
+      business_address: string
+      timezone: string
+      professional_name: string
+      service_name: string
+      price_cents: number
+    }
+  }
+}
 
 export class ApiError extends Error {
   constructor(
@@ -56,7 +87,10 @@ export class ApiError extends Error {
 }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, { ...init, headers: { 'Content-Type': 'application/json' } })
+  const response = await fetch(url, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', ...init?.headers },
+  })
   const body = await response.json()
   if (!response.ok) {
     const message = typeof body.detail === 'string' ? body.detail : 'Verifique os dados informados'
@@ -75,4 +109,16 @@ export const api = {
   booking: (id: string) => request<Booking>(`/api/booking/bookings/${id}`),
   cancelBooking: (id: string) =>
     request<Booking>(`/api/booking/bookings/${id}/cancel`, { method: 'POST' }),
+  joinWaitlist: (data: WaitlistEntryIn) =>
+    request<{ id: string; position: number }>('/api/waitlist/entries', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  offer: (id: string) => request<Offer>(`/api/waitlist/offers/${id}`),
+  agenda: async (businessId: string, date: string) =>
+    request<Booking[]>(`/api/booking/businesses/${businessId}/agenda?date=${date}`, {
+      headers: await authorization(),
+    }),
+  claimOffer: (id: string) =>
+    request<Offer>(`/api/waitlist/offers/${id}/claim`, { method: 'POST' }),
 }

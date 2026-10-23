@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CalendarCheck } from 'lucide-vue-next'
+import { CalendarCheck, LayoutDashboard } from 'lucide-vue-next'
 </script>
 
 <template>
@@ -16,12 +16,20 @@ import { CalendarCheck } from 'lucide-vue-next'
             Vaga<span class="text-brand-600">Certa</span>
           </span>
         </RouterLink>
-        <RouterLink
-          :to="{ name: 'home', hash: '#estabelecimentos' }"
-          class="rounded-full px-4 py-2 text-sm font-semibold text-ink/70 transition hover:bg-brand-50 hover:text-brand-700"
-        >
-          Estabelecimentos
-        </RouterLink>
+        <nav class="flex items-center gap-1">
+          <RouterLink
+            :to="{ name: 'home', hash: '#estabelecimentos' }"
+            class="hidden rounded-full px-4 py-2 text-sm font-semibold text-ink/70 transition hover:bg-brand-50 hover:text-brand-700 sm:block"
+          >
+            Estabelecimentos
+          </RouterLink>
+          <RouterLink
+            :to="{ name: 'painel' }"
+            class="inline-flex items-center gap-2 rounded-full bg-brand-50 px-4 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-100"
+          >
+            <LayoutDashboard class="size-4" /> Área do estabelecimento
+          </RouterLink>
+        </nav>
       </div>
     </header>
 

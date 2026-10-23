@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from catalog import models, schemas
+from catalog.auth import require_role
 
 router = APIRouter()
 
@@ -18,6 +19,7 @@ async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
 
 
 Session = Annotated[AsyncSession, Depends(get_session)]
+Admin = Depends(require_role("admin"))
 
 
 async def get_business_or_404(
@@ -34,7 +36,7 @@ async def list_businesses(session: Session) -> Sequence[models.Business]:
     return (await session.scalars(select(models.Business).order_by(models.Business.name))).all()
 
 
-@router.post("/businesses", response_model=schemas.Business, status_code=201)
+@router.post("/businesses", response_model=schemas.Business, status_code=201, dependencies=[Admin])
 async def create_business(data: schemas.BusinessIn, session: Session) -> models.Business:
     business = models.Business(**data.model_dump())
     session.add(business)
@@ -57,6 +59,7 @@ async def get_business(business_id: UUID, session: Session) -> models.Business:
 @router.post(
     "/businesses/{business_id}/professionals",
     response_model=schemas.Professional,
+    dependencies=[Admin],
     status_code=201,
 )
 async def create_professional(
@@ -74,7 +77,12 @@ async def create_professional(
     return professional
 
 
-@router.post("/businesses/{business_id}/services", response_model=schemas.Service, status_code=201)
+@router.post(
+    "/businesses/{business_id}/services",
+    response_model=schemas.Service,
+    status_code=201,
+    dependencies=[Admin],
+)
 async def create_service(
     business_id: UUID, data: schemas.ServiceIn, session: Session
 ) -> models.Service:

@@ -1,5 +1,6 @@
 import asyncio
 from datetime import time
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -21,6 +22,7 @@ def hours(days: range, *periods: tuple[str, str]) -> list[WorkingHours]:
 def businesses() -> list[Business]:
     return [
         Business(
+            id=UUID("6384a99a-146a-4b11-8e9b-db99b79e8fd2"),
             name="Barbearia Navalha de Ouro",
             category="barbearia",
             description="Cortes clássicos e modernos, barba na toalha quente e um bom café.",
@@ -45,6 +47,7 @@ def businesses() -> list[Business]:
             ],
         ),
         Business(
+            id=UUID("82e6f4b6-a076-4690-85f3-ca4b4bc17c49"),
             name="Studio Bella Unhas",
             category="beleza",
             description="Manicure, pedicure e design de sobrancelhas com atendimento hora marcada.",
@@ -69,6 +72,7 @@ def businesses() -> list[Business]:
             ],
         ),
         Business(
+            id=UUID("711fa378-fb4e-429e-bd5e-6a3f856ab875"),
             name="Clínica Sorriso Pleno",
             category="saude",
             description="Odontologia para toda a família: avaliação, limpeza e ortodontia.",
@@ -93,6 +97,7 @@ def businesses() -> list[Business]:
             ],
         ),
         Business(
+            id=UUID("f075764e-6483-48a9-a6ae-f5629514acf2"),
             name="Espaço Zen Massoterapia",
             category="bem-estar",
             description="Massagens relaxantes e terapêuticas para aliviar a rotina.",
