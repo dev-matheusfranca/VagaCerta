@@ -1,0 +1,42 @@
+[tool.uv.workspace]
+members = ["services/*"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC", "RUF"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["catalog", "booking"]
+
+[tool.mypy]
+strict = true
+plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+testpaths = ["services"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+
+[tool.importlinter]
+root_packages = ["booking"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Booking domain does not depend on frameworks"
+type = "forbidden"
+source_modules = ["booking.domain"]
+forbidden_modules = ["fastapi", "sqlalchemy", "httpx", "pydantic"]
+
+[dependency-groups]
+dev = [
+    "hypothesis>=6.170.8",
+    "import-linter>=2.15",
+    "mypy>=2.4.0",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "ruff>=0.17.2",
+    "testcontainers[postgres]>=4.15.0",
+]

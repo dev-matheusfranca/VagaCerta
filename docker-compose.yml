@@ -1,0 +1,53 @@
+x-postgres: &postgres
+  image: postgres:17-alpine
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U vagacerta"]
+    interval: 2s
+    retries: 15
+
+services:
+  catalog-db:
+    <<: *postgres
+    environment:
+      POSTGRES_USER: vagacerta
+      POSTGRES_PASSWORD: vagacerta
+      POSTGRES_DB: catalog
+    ports: ["5433:5432"]
+
+  booking-db:
+    <<: *postgres
+    environment:
+      POSTGRES_USER: vagacerta
+      POSTGRES_PASSWORD: vagacerta
+      POSTGRES_DB: booking
+    ports: ["5434:5432"]
+
+  catalog:
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+      args: { SERVICE: catalog }
+    command: sh -c "alembic upgrade head && python -m catalog.seed && uvicorn catalog.main:app --host 0.0.0.0 --port 8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://vagacerta:vagacerta@catalog-db:5432/catalog
+    ports: ["8001:8000"]
+    depends_on:
+      catalog-db: { condition: service_healthy }
+
+  booking:
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+      args: { SERVICE: booking }
+    environment:
+      DATABASE_URL: postgresql+asyncpg://vagacerta:vagacerta@booking-db:5432/booking
+      CATALOG_URL: http://catalog:8000
+    ports: ["8002:8000"]
+    depends_on:
+      booking-db: { condition: service_healthy }
+      catalog: { condition: service_started }
+
+  web:
+    build: web
+    ports: ["8080:80"]
+    depends_on: [catalog, booking]

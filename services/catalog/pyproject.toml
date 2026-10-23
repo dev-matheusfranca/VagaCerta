@@ -1,0 +1,17 @@
+[project]
+name = "catalog"
+version = "0.1.0"
+description = "Businesses, professionals, services and working hours."
+requires-python = ">=3.13"
+dependencies = [
+    "alembic>=1.20.1",
+    "asyncpg>=0.32.0",
+    "fastapi>=0.161.1",
+    "sqlalchemy[asyncio]>=2.1.6",
+    "tzdata>=2026.5",
+    "uvicorn>=0.54.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.13,<0.14"]
+build-backend = "uv_build"

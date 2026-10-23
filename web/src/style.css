@@ -1,0 +1,28 @@
+@import 'tailwindcss';
+
+/*
+  Identidade visual: verde-petróleo transmite confiança e calma (saúde, bem-estar, "vaga livre");
+  âmbar é o acento de tempo/urgência ("vaga liberada", destaques); fundo off-white levemente mentolado.
+*/
+@theme {
+  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+
+  --color-brand-50: #effbf8;
+  --color-brand-100: #d5f5ec;
+  --color-brand-200: #aeeadb;
+  --color-brand-300: #78d8c4;
+  --color-brand-400: #43bfa8;
+  --color-brand-500: #22a38e;
+  --color-brand-600: #168373;
+  --color-brand-700: #15695e;
+  --color-brand-800: #15544d;
+  --color-brand-900: #0f3f3a;
+  --color-brand-950: #062623;
+
+  --color-ink: #10272a;
+  --color-canvas: #f5f8f7;
+}
+
+body {
+  @apply bg-canvas text-ink antialiased;
+}
