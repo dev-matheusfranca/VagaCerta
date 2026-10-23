@@ -61,6 +61,44 @@ services:
       booking: { condition: service_healthy }
       kafka: { condition: service_healthy }
 
+  notification-db:
+    <<: *postgres
+    environment:
+      POSTGRES_USER: vagacerta
+      POSTGRES_PASSWORD: vagacerta
+      POSTGRES_DB: notification
+    ports: ["5435:5432"]
+
+  notification:
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+      args: { SERVICE: notification }
+    command: sh -c "alembic upgrade head && python -m notification"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://vagacerta:vagacerta@notification-db:5432/notification
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      WEB_URL: http://localhost:8080
+    depends_on:
+      notification-db: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+
+  rabbitmq:
+    image: rabbitmq:4.2-management-alpine
+    ports: ["5672:5672", "15672:15672"]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+      interval: 5s
+      retries: 20
+
+  mailpit:
+    image: axllent/mailpit:v1.28
+    ports: ["8025:8025", "1025:1025"]
+
   kafka:
     image: apache/kafka:4.2.0
     environment:
