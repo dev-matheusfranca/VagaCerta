@@ -1,0 +1,42 @@
+/* Paleta do VagaCerta sobre o tema keycloak.v2 (PatternFly 5). */
+:root {
+  --keycloak-logo-url: url('../img/logo.svg');
+  --keycloak-logo-height: 48px;
+  --keycloak-logo-width: 220px;
+  --keycloak-card-top-color: #fbbf24;
+  --pf-v5-global--primary-color--100: #15695e;
+  --pf-v5-global--primary-color--200: #15544d;
+  --pf-v5-global--link--Color: #15695e;
+  --pf-v5-global--link--Color--hover: #0f3f3a;
+  --pf-v5-c-button--m-primary--BackgroundColor: #15695e;
+  --pf-v5-c-button--m-primary--hover--BackgroundColor: #15544d;
+  --pf-v5-c-button--m-primary--focus--BackgroundColor: #15544d;
+  --pf-v5-c-button--m-primary--active--BackgroundColor: #0f3f3a;
+}
+
+.login-pf body {
+  background:
+    radial-gradient(circle at 85% -10%, rgb(34 163 142 / 0.35), transparent 45%),
+    radial-gradient(circle at 0% 110%, rgb(251 191 36 / 0.12), transparent 40%),
+    #062623;
+}
+
+.pf-v5-c-login__main {
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.45);
+}
+
+.pf-v5-c-button.pf-m-primary {
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+/* Troca o nome do realm, em texto, pelo logo. */
+#kc-header-wrapper {
+  height: var(--keycloak-logo-height);
+  width: var(--keycloak-logo-width);
+  margin-inline: auto;
+  background: var(--keycloak-logo-url) no-repeat center / contain;
+  font-size: 0;
+}

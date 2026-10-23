@@ -5,6 +5,11 @@ x-postgres: &postgres
     interval: 2s
     retries: 15
 
+x-api-healthcheck: &api-healthcheck
+  test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/openapi.json')"]
+  interval: 3s
+  retries: 20
+
 services:
   catalog-db:
     <<: *postgres
@@ -30,7 +35,9 @@ services:
     command: sh -c "alembic upgrade head && python -m catalog.seed && uvicorn catalog.main:app --host 0.0.0.0 --port 8000"
     environment:
       DATABASE_URL: postgresql+asyncpg://vagacerta:vagacerta@catalog-db:5432/catalog
+      KEYCLOAK_JWKS_URL: &jwks http://keycloak:8080/auth/realms/vagacerta/protocol/openid-connect/certs
     ports: ["8001:8000"]
+    healthcheck: *api-healthcheck
     depends_on:
       catalog-db: { condition: service_healthy }
 
@@ -39,17 +46,16 @@ services:
       context: .
       dockerfile: services/Dockerfile
       args: { SERVICE: booking }
+    command: sh -c "alembic upgrade head && python -m booking.seed && uvicorn booking.main:app --host 0.0.0.0 --port 8000"
     environment:
       DATABASE_URL: postgresql+asyncpg://vagacerta:vagacerta@booking-db:5432/booking
       CATALOG_URL: http://catalog:8000
+      KEYCLOAK_JWKS_URL: *jwks
     ports: ["8002:8000"]
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/openapi.json')"]
-      interval: 3s
-      retries: 20
+    healthcheck: *api-healthcheck
     depends_on:
       booking-db: { condition: service_healthy }
-      catalog: { condition: service_started }
+      catalog: { condition: service_healthy }
 
   booking-relay:
     build: *booking-build
@@ -79,14 +85,14 @@ services:
       CATALOG_URL: http://catalog:8000
       BOOKING_URL: http://booking:8000
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KEYCLOAK_TOKEN_URL: http://keycloak:8080/auth/realms/vagacerta/protocol/openid-connect/token
+      CLIENT_SECRET: waitlist-dev-secret
       OFFER_MINUTES: 15
     ports: ["8003:8000"]
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/openapi.json')"]
-      interval: 3s
-      retries: 20
+    healthcheck: *api-healthcheck
     depends_on:
       waitlist-db: { condition: service_healthy }
+      keycloak: { condition: service_healthy }
 
   waitlist-worker:
     build: *waitlist-build
@@ -96,6 +102,26 @@ services:
       waitlist: { condition: service_healthy }
       booking: { condition: service_healthy }
       kafka: { condition: service_healthy }
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HTTP_RELATIVE_PATH: /auth
+      # O emissor dos tokens é sempre a URL pública, mesmo quando os serviços chamam pela rede interna.
+      KC_HOSTNAME: http://localhost:8080/auth
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      - ./keycloak/vagacerta-realm.json:/opt/keycloak/data/import/vagacerta-realm.json:ro
+      - ./keycloak/themes/vagacerta:/opt/keycloak/themes/vagacerta:ro
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/9000 && printf 'GET /auth/health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q UP <&3"]
+      interval: 5s
+      retries: 40
 
   notification-db:
     <<: *postgres
@@ -183,4 +209,4 @@ services:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
       interval: 3s
       retries: 20
-    depends_on: [web, catalog, booking, waitlist]
+    depends_on: [web, catalog, booking, waitlist, keycloak]

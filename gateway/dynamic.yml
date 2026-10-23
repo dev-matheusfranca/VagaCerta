@@ -20,6 +20,9 @@ http:
       rule: PathPrefix(`/api/waitlist`) && Method(`POST`)
       service: waitlist
       middlewares: [write-rate-limit, strip-api, security-headers]
+    keycloak:
+      rule: PathPrefix(`/auth`)
+      service: keycloak
     web:
       rule: PathPrefix(`/`)
       priority: 1
@@ -52,6 +55,9 @@ http:
     waitlist:
       loadBalancer:
         servers: [{ url: http://waitlist:8000 }]
+    keycloak:
+      loadBalancer:
+        servers: [{ url: http://keycloak:8080 }]
     web:
       loadBalancer:
         servers: [{ url: http://web:80 }]
