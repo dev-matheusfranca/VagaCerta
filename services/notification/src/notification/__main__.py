@@ -16,7 +16,7 @@ from notification.config import (
     SMTP_PORT,
 )
 from notification.consumer import consume
-from notification.events import TOPIC
+from notification.events import TOPICS
 from notification.scheduler import run_scheduler
 
 
@@ -29,7 +29,7 @@ async def main() -> None:
     publish = partial(mailer.publish, channel)
 
     consumer = AIOKafkaConsumer(
-        TOPIC,
+        *TOPICS,
         bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
         group_id="notification",
         enable_auto_commit=False,

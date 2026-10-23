@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, Field, TypeAdapter
 
-TOPIC = "booking.events"
+TOPICS = ("booking.events", "waitlist.events")
 
 
 class BookingDetails(BaseModel):
@@ -36,7 +36,16 @@ class BookingCancelled(BaseModel):
     data: BookingRef
 
 
-BookingEvent = BookingCreated | BookingCancelled
-booking_event: TypeAdapter[BookingEvent] = TypeAdapter(
-    Annotated[BookingEvent, Field(discriminator="type")]
-)
+class OfferDetails(BookingDetails):
+    offer_id: UUID
+    expires_at: AwareDatetime
+
+
+class OfferCreated(BaseModel):
+    event_id: UUID
+    type: Literal["waitlist.offer_created"]
+    data: OfferDetails
+
+
+Event = BookingCreated | BookingCancelled | OfferCreated
+event_adapter: TypeAdapter[Event] = TypeAdapter(Annotated[Event, Field(discriminator="type")])
