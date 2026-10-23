@@ -1,5 +1,6 @@
 import os
 
+import httpx
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
@@ -29,5 +30,7 @@ def create_app(database_url: str, catalog: CatalogClient, tokens: TokenVerifier)
 
 
 app = create_app(
-    DATABASE_URL, CatalogClient(CATALOG_URL), keycloak_verifier(KEYCLOAK_ISSUER, KEYCLOAK_JWKS_URL)
+    DATABASE_URL,
+    CatalogClient(httpx.AsyncClient(base_url=CATALOG_URL, timeout=5)),
+    keycloak_verifier(KEYCLOAK_ISSUER, KEYCLOAK_JWKS_URL),
 )

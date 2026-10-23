@@ -1,4 +1,5 @@
 from datetime import date, time
+from time import monotonic
 from uuid import UUID
 
 import httpx
@@ -37,12 +38,23 @@ class Business(BaseModel):
 
 
 class CatalogClient:
-    def __init__(self, base_url: str) -> None:
-        self._http = httpx.AsyncClient(base_url=base_url, timeout=5)
+    # O catálogo quase não muda e é lido em toda consulta de disponibilidade: um cache curto
+    # tira a chamada HTTP do caminho quente. Mudanças de expediente valem em até CACHE_SECONDS.
+    CACHE_SECONDS = 30
+
+    def __init__(self, http: httpx.AsyncClient) -> None:
+        self._http = http
+        self._cache: dict[UUID, tuple[float, Business | None]] = {}
 
     async def get_business(self, business_id: UUID) -> Business | None:
+        expires_at, business = self._cache.get(business_id, (0.0, None))
+        if monotonic() < expires_at:
+            return business
         response = await self._http.get(f"/businesses/{business_id}")
         if response.status_code == 404:
-            return None
-        response.raise_for_status()
-        return Business.model_validate_json(response.content)
+            business = None
+        else:
+            response.raise_for_status()
+            business = Business.model_validate_json(response.content)
+        self._cache[business_id] = (monotonic() + self.CACHE_SECONDS, business)
+        return business
