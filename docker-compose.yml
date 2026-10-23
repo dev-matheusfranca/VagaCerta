@@ -210,3 +210,13 @@ services:
       interval: 3s
       retries: 20
     depends_on: [web, catalog, booking, waitlist, keycloak]
+
+  k6:
+    image: grafana/k6:1.3.0
+    profiles: [load]
+    command: run /scripts/booking.js
+    environment:
+      BASE_URL: http://gateway
+    volumes: ["./load:/scripts:ro"]
+    depends_on:
+      gateway: { condition: service_healthy }
