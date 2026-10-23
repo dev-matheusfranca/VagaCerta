@@ -5,6 +5,30 @@ Todas as mudanças relevantes do projeto ficam registradas neste arquivo.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto usa
 [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.3.0] - 2026-10-23
+
+### Adicionado
+
+- API gateway com Traefik: ponto único de entrada, rate limit nas gravações e cabeçalhos de segurança.
+- Serviço Waitlist: lista de espera como saga orquestrada, com reserva temporária do horário, oferta por
+  e-mail, confirmação e compensação quando a oferta expira.
+- Reservas temporárias no Booking (`/holds`, `/confirm`, `/release`); `booking.cancelled` passa a trazer o
+  horário liberado.
+- E-mail "Uma vaga abriu" e página da oferta com contagem regressiva.
+- Keycloak com realm versionado, tema de login próprio, login do dono com PKCE e token de serviço
+  (client credentials) para o Waitlist chamar o Booking.
+- Painel do estabelecimento com a agenda do dia por profissional, totais e cancelamento.
+- Dados de demonstração: um dia lotado na Clínica Sorriso Pleno e usuários de exemplo.
+- Teste de carga com k6 e job de ponta a ponta no CI, que sobe a stack completa.
+- ADRs 0005 (saga da lista de espera), 0006 (Keycloak e gateway) e 0007 (cache do catálogo).
+
+### Alterado
+
+- Criar estabelecimentos, profissionais e serviços exige o papel `admin`.
+- O Booking guarda o catálogo em cache por 30 segundos: vazão de 47 para 135 req/s no teste de carga.
+- Só agendamentos confirmados podem ser cancelados.
+- README, ADRs e changelog em português.
+
 ## [0.2.1] - 2026-10-23
 
 ### Adicionado
@@ -42,6 +66,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 - Testes unitários, baseados em propriedades, de integração, de concorrência e de arquitetura.
 - Docker Compose, pipeline no GitHub Actions, README e ADRs 0001 e 0002.
 
+[0.3.0]: https://github.com/dev-matheusfranca/VagaCerta/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/dev-matheusfranca/VagaCerta/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/dev-matheusfranca/VagaCerta/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/dev-matheusfranca/VagaCerta/releases/tag/v0.1.0
