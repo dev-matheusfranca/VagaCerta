@@ -1,15 +1,15 @@
 import asyncio
-from datetime import datetime, time, timedelta
+from datetime import UTC, datetime, time, timedelta
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import select, text
+from sqlalchemy import select, text, update
 
 from booking.catalog_client import Business, Professional, Service, WorkingHours
 from booking.main import create_app
-from booking.models import OutboxEvent
+from booking.models import Booking, OutboxEvent
 
 TZ = ZoneInfo("America/Sao_Paulo")
 TOMORROW = datetime.now(TZ).date() + timedelta(days=1)
@@ -152,3 +152,66 @@ async def test_rejected_booking_publishes_nothing(app, client):
     await client.post("/bookings", json=booking(9, 30))
 
     assert len(await outbox(app)) == 1
+
+
+def hold(hour: int, minute: int = 0):
+    return {**booking(hour, minute), "hold_minutes": 15}
+
+
+async def expire(app, booking_id):
+    async with app.state.sessionmaker() as session:
+        await session.execute(
+            update(Booking)
+            .where(Booking.id == booking_id)
+            .values(hold_expires_at=datetime.now(UTC) - timedelta(minutes=1))
+        )
+        await session.commit()
+
+
+async def test_hold_blocks_the_slot_until_confirmed(app, client):
+    held = (await client.post("/holds", json=hold(9))).json()
+
+    blocked = await client.post("/bookings", json=booking(9))
+    confirmed = await client.post(f"/bookings/{held['id']}/confirm")
+
+    assert held["status"] == "held"
+    assert blocked.status_code == 409
+    assert "09:00" not in await free_hours(client)
+    assert confirmed.json()["status"] == "confirmed"
+    assert [e["type"] for e in await outbox(app)] == ["booking.created"]
+
+
+async def test_released_hold_frees_the_slot(client):
+    held = (await client.post("/holds", json=hold(9))).json()
+
+    released = await client.post(f"/bookings/{held['id']}/release")
+
+    assert released.json()["status"] == "released"
+    assert "09:00" in await free_hours(client)
+
+
+async def test_expired_hold_cannot_be_confirmed_and_no_longer_blocks(app, client):
+    held = (await client.post("/holds", json=hold(9))).json()
+    await expire(app, held["id"])
+
+    confirmed = await client.post(f"/bookings/{held['id']}/confirm")
+
+    assert confirmed.status_code == 409
+    assert "09:00" in await free_hours(client)
+    assert (await client.post("/bookings", json=booking(9))).status_code == 201
+
+
+async def test_only_confirmed_bookings_can_be_cancelled(client):
+    held = (await client.post("/holds", json=hold(9))).json()
+
+    assert (await client.post(f"/bookings/{held['id']}/cancel")).status_code == 409
+
+
+async def test_cancellation_event_carries_the_freed_slot(app, client):
+    created = (await client.post("/bookings", json=booking(10))).json()
+    await client.post(f"/bookings/{created['id']}/cancel")
+
+    data = (await outbox(app))[-1]["data"]
+
+    assert data["professional_id"] == str(PROFESSIONAL.id)
+    assert datetime.fromisoformat(data["starts_at"]) == datetime.combine(TOMORROW, time(10), TZ)

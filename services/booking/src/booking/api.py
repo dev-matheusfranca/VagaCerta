@@ -1,11 +1,11 @@
 from collections.abc import AsyncIterator
 from datetime import UTC, date, datetime, time, timedelta
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy import select
+from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -41,8 +41,10 @@ async def load_schedule(
     raise HTTPException(404, "Estabelecimento, profissional ou serviço não encontrado")
 
 
-async def get_booking_or_404(session: AsyncSession, booking_id: UUID) -> models.Booking:
-    booking = await session.get(models.Booking, booking_id)
+async def get_booking_or_404(
+    session: AsyncSession, booking_id: UUID, **kwargs: Any
+) -> models.Booking:
+    booking = await session.get(models.Booking, booking_id, **kwargs)
     if booking is None:
         raise HTTPException(404, "Agendamento não encontrado")
     return booking
@@ -62,10 +64,14 @@ async def get_availability(
     )
     tz = ZoneInfo(business.timezone)
     day_start = datetime.combine(date, time(), tz)
+    now = datetime.now(UTC)
     busy = await session.execute(
         select(models.Booking.starts_at, models.Booking.ends_at).where(
             models.Booking.professional_id == professional_id,
-            models.Booking.status == "confirmed",
+            or_(
+                models.Booking.status == "confirmed",
+                and_(models.Booking.status == "held", models.Booking.hold_expires_at > now),
+            ),
             models.Booking.starts_at < day_start + timedelta(days=1),
             models.Booking.ends_at > day_start,
         )
@@ -76,15 +82,14 @@ async def get_availability(
         professional.periods_on(date),
         timedelta(minutes=service.duration_minutes),
         list(busy.all()),
-        datetime.now(UTC),
+        now,
     )
     return {"slots": slots}
 
 
-@router.post("/bookings", response_model=schemas.Booking, status_code=201)
-async def create_booking(
-    data: schemas.BookingIn, session: Session, catalog: Catalog
-) -> models.Booking:
+async def reserve(
+    data: schemas.BookingIn, session: AsyncSession, catalog: CatalogClient, **fields: Any
+) -> tuple[models.Booking, Business, Professional, Service]:
     business, professional, service = await load_schedule(
         catalog, data.business_id, data.professional_id, data.service_id
     )
@@ -97,12 +102,49 @@ async def create_booking(
     if data.starts_at not in open_slots:
         raise HTTPException(422, "Horário fora do expediente do profissional ou já passou")
 
-    booking = models.Booking(id=uuid4(), **data.model_dump(), ends_at=data.starts_at + duration)
-    session.add_all([booking, events.booking_created(booking, business, professional, service)])
+    # Reservas vencidas não podem continuar bloqueando o horário na constraint do banco.
+    await session.execute(
+        update(models.Booking)
+        .where(models.Booking.status == "held", models.Booking.hold_expires_at <= func.now())
+        .values(status="released")
+    )
+    booking = models.Booking(
+        id=uuid4(),
+        **data.model_dump(exclude={"hold_minutes"}),
+        ends_at=data.starts_at + duration,
+        **fields,
+    )
+    return booking, business, professional, service
+
+
+async def commit_or_conflict(session: AsyncSession) -> None:
     try:
         await session.commit()
     except IntegrityError:
         raise HTTPException(409, "Esse horário acabou de ser reservado por outra pessoa") from None
+
+
+@router.post("/bookings", response_model=schemas.Booking, status_code=201)
+async def create_booking(
+    data: schemas.BookingIn, session: Session, catalog: Catalog
+) -> models.Booking:
+    booking, business, professional, service = await reserve(data, session, catalog)
+    session.add_all([booking, events.booking_created(booking, business, professional, service)])
+    await commit_or_conflict(session)
+    return booking
+
+
+@router.post("/holds", response_model=schemas.Booking, status_code=201)
+async def create_hold(data: schemas.HoldIn, session: Session, catalog: Catalog) -> models.Booking:
+    booking, *_ = await reserve(
+        data,
+        session,
+        catalog,
+        status="held",
+        hold_expires_at=datetime.now(UTC) + timedelta(minutes=data.hold_minutes),
+    )
+    session.add(booking)
+    await commit_or_conflict(session)
     return booking
 
 
@@ -111,11 +153,39 @@ async def get_booking(booking_id: UUID, session: Session) -> models.Booking:
     return await get_booking_or_404(session, booking_id)
 
 
+@router.post("/bookings/{booking_id}/confirm", response_model=schemas.Booking)
+async def confirm_booking(booking_id: UUID, session: Session, catalog: Catalog) -> models.Booking:
+    booking = await get_booking_or_404(session, booking_id, with_for_update=True)
+    if booking.status == "confirmed":
+        return booking
+    if booking.status != "held" or booking.hold_expires_at <= datetime.now(UTC):  # type: ignore[operator]
+        raise HTTPException(409, "A reserva expirou")
+    business, professional, service = await load_schedule(
+        catalog, booking.business_id, booking.professional_id, booking.service_id
+    )
+    booking.status, booking.hold_expires_at = "confirmed", None
+    session.add(events.booking_created(booking, business, professional, service))
+    await session.commit()
+    return booking
+
+
+@router.post("/bookings/{booking_id}/release", response_model=schemas.Booking)
+async def release_booking(booking_id: UUID, session: Session) -> models.Booking:
+    booking = await get_booking_or_404(session, booking_id, with_for_update=True)
+    if booking.status not in ("held", "released"):
+        raise HTTPException(409, "Só reservas temporárias podem ser liberadas")
+    booking.status = "released"
+    await session.commit()
+    return booking
+
+
 @router.post("/bookings/{booking_id}/cancel", response_model=schemas.Booking)
 async def cancel_booking(booking_id: UUID, session: Session) -> models.Booking:
-    booking = await get_booking_or_404(session, booking_id)
+    booking = await get_booking_or_404(session, booking_id, with_for_update=True)
     if booking.status == "cancelled":
         return booking
+    if booking.status != "confirmed":
+        raise HTTPException(409, "Só agendamentos confirmados podem ser cancelados")
     if booking.starts_at <= datetime.now(UTC):
         raise HTTPException(409, "Não é possível cancelar um atendimento que já começou")
     booking.status = "cancelled"

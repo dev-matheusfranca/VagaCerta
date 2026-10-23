@@ -14,12 +14,17 @@ class BookingIn(BaseModel):
     customer_email: EmailStr
 
 
+class HoldIn(BookingIn):
+    hold_minutes: int = Field(ge=1, le=60)
+
+
 class Booking(BookingIn):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
     ends_at: datetime
-    status: Literal["confirmed", "cancelled"]
+    status: Literal["confirmed", "cancelled", "held", "released"]
+    hold_expires_at: datetime | None
 
 
 class Availability(BaseModel):
