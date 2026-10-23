@@ -3,10 +3,13 @@ from datetime import UTC, datetime, time, timedelta
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
+import jwt
 import pytest
+from cryptography.hazmat.primitives.asymmetric import rsa
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select, text, update
 
+from booking.auth import AUDIENCE, TokenVerifier
 from booking.catalog_client import Business, Professional, Service, WorkingHours
 from booking.main import create_app
 from booking.models import Booking, OutboxEvent
@@ -34,6 +37,21 @@ SCHEDULE = {
 }
 
 
+ISSUER = "http://keycloak.test/realms/vagacerta"
+KEY = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+
+
+def token(*roles: str, businesses: tuple[str, ...] = ()) -> dict[str, str]:
+    claims = {
+        "iss": ISSUER,
+        "aud": AUDIENCE,
+        "exp": datetime.now(UTC) + timedelta(minutes=5),
+        "realm_access": {"roles": list(roles)},
+        "businesses": list(businesses),
+    }
+    return {"Authorization": f"Bearer {jwt.encode(claims, KEY, algorithm='RS256')}"}
+
+
 class FakeCatalog:
     async def get_business(self, business_id):
         return BUSINESS if business_id == BUSINESS.id else None
@@ -59,12 +77,16 @@ async def free_hours(client) -> list[str]:
 
 @pytest.fixture(scope="module")
 def app(database_url):
-    return create_app(database_url, FakeCatalog())
+    return create_app(
+        database_url, FakeCatalog(), TokenVerifier(ISSUER, lambda _: KEY.public_key())
+    )
 
 
 @pytest.fixture
 async def client(app):
-    async with AsyncClient(transport=ASGITransport(app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app), base_url="http://test", headers=token("booking-holds")
+    ) as client:
         yield client
     async with app.state.sessionmaker() as session:
         await session.execute(text("TRUNCATE bookings, outbox"))
@@ -215,3 +237,33 @@ async def test_cancellation_event_carries_the_freed_slot(app, client):
 
     assert data["professional_id"] == str(PROFESSIONAL.id)
     assert datetime.fromisoformat(data["starts_at"]) == datetime.combine(TOMORROW, time(10), TZ)
+
+
+async def test_saga_commands_require_the_waitlist_service_role(client):
+    anonymous = await client.post("/holds", json=hold(9), headers={"Authorization": ""})
+    owner = await client.post("/holds", json=hold(9), headers=token("owner"))
+
+    assert (anonymous.status_code, owner.status_code) == (401, 403)
+
+
+async def test_owner_sees_bookings_and_holds_of_the_day(client):
+    await client.post("/holds", json=hold(10))
+    await client.post("/bookings", json=booking(9))
+
+    agenda = await client.get(
+        f"/businesses/{BUSINESS.id}/agenda",
+        params={"date": str(TOMORROW)},
+        headers=token("owner", businesses=(str(BUSINESS.id),)),
+    )
+
+    assert [b["status"] for b in agenda.json()] == ["confirmed", "held"]
+
+
+async def test_owner_cannot_see_another_business_agenda(client):
+    agenda = await client.get(
+        f"/businesses/{BUSINESS.id}/agenda",
+        params={"date": str(TOMORROW)},
+        headers=token("owner", businesses=(str(uuid4()),)),
+    )
+
+    assert agenda.status_code == 403

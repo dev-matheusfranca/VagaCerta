@@ -1,15 +1,16 @@
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Annotated, Any
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy import and_, func, or_, select, update
+from sqlalchemy import ColumnElement, and_, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from booking import events, models, schemas
+from booking.auth import Claims, require_role
 from booking.catalog_client import Business, CatalogClient, Professional, Service
 from booking.domain import available_slots
 
@@ -27,6 +28,8 @@ def get_catalog(request: Request) -> CatalogClient:
 
 Session = Annotated[AsyncSession, Depends(get_session)]
 Catalog = Annotated[CatalogClient, Depends(get_catalog)]
+Owner = Annotated[Claims, Depends(require_role("owner"))]
+WaitlistService = Depends(require_role("booking-holds"))
 
 
 async def load_schedule(
@@ -50,6 +53,13 @@ async def get_booking_or_404(
     return booking
 
 
+def occupies_slot(now: datetime) -> ColumnElement[bool]:
+    return or_(
+        models.Booking.status == "confirmed",
+        and_(models.Booking.status == "held", models.Booking.hold_expires_at > now),
+    )
+
+
 @router.get("/availability", response_model=schemas.Availability)
 async def get_availability(
     business_id: UUID,
@@ -68,10 +78,7 @@ async def get_availability(
     busy = await session.execute(
         select(models.Booking.starts_at, models.Booking.ends_at).where(
             models.Booking.professional_id == professional_id,
-            or_(
-                models.Booking.status == "confirmed",
-                and_(models.Booking.status == "held", models.Booking.hold_expires_at > now),
-            ),
+            occupies_slot(now),
             models.Booking.starts_at < day_start + timedelta(days=1),
             models.Booking.ends_at > day_start,
         )
@@ -134,7 +141,9 @@ async def create_booking(
     return booking
 
 
-@router.post("/holds", response_model=schemas.Booking, status_code=201)
+@router.post(
+    "/holds", response_model=schemas.Booking, status_code=201, dependencies=[WaitlistService]
+)
 async def create_hold(data: schemas.HoldIn, session: Session, catalog: Catalog) -> models.Booking:
     booking, *_ = await reserve(
         data,
@@ -153,7 +162,9 @@ async def get_booking(booking_id: UUID, session: Session) -> models.Booking:
     return await get_booking_or_404(session, booking_id)
 
 
-@router.post("/bookings/{booking_id}/confirm", response_model=schemas.Booking)
+@router.post(
+    "/bookings/{booking_id}/confirm", response_model=schemas.Booking, dependencies=[WaitlistService]
+)
 async def confirm_booking(booking_id: UUID, session: Session, catalog: Catalog) -> models.Booking:
     booking = await get_booking_or_404(session, booking_id, with_for_update=True)
     if booking.status == "confirmed":
@@ -169,7 +180,9 @@ async def confirm_booking(booking_id: UUID, session: Session, catalog: Catalog) 
     return booking
 
 
-@router.post("/bookings/{booking_id}/release", response_model=schemas.Booking)
+@router.post(
+    "/bookings/{booking_id}/release", response_model=schemas.Booking, dependencies=[WaitlistService]
+)
 async def release_booking(booking_id: UUID, session: Session) -> models.Booking:
     booking = await get_booking_or_404(session, booking_id, with_for_update=True)
     if booking.status not in ("held", "released"):
@@ -192,3 +205,27 @@ async def cancel_booking(booking_id: UUID, session: Session) -> models.Booking:
     session.add(events.booking_cancelled(booking))
     await session.commit()
     return booking
+
+
+@router.get("/businesses/{business_id}/agenda", response_model=list[schemas.Booking])
+async def get_agenda(
+    business_id: UUID, date: date, session: Session, catalog: Catalog, claims: Owner
+) -> Sequence[models.Booking]:
+    # Cada dono pertence, no Keycloak, ao grupo com o id do seu estabelecimento.
+    if str(business_id) not in claims.get("businesses", []):
+        raise HTTPException(403, "Você não tem acesso a este estabelecimento")
+    business = await catalog.get_business(business_id)
+    if business is None:
+        raise HTTPException(404, "Estabelecimento não encontrado")
+    day_start = datetime.combine(date, time(), ZoneInfo(business.timezone))
+    bookings = await session.scalars(
+        select(models.Booking)
+        .where(
+            models.Booking.business_id == business_id,
+            occupies_slot(datetime.now(UTC)),
+            models.Booking.starts_at >= day_start,
+            models.Booking.starts_at < day_start + timedelta(days=1),
+        )
+        .order_by(models.Booking.starts_at)
+    )
+    return bookings.all()
