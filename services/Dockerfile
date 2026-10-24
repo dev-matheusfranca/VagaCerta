@@ -11,4 +11,4 @@ RUN uv sync --frozen --no-dev --package $SERVICE
 
 WORKDIR /app/services/$SERVICE
 EXPOSE 8000
-CMD alembic upgrade head && uvicorn $SERVICE.main:app --host 0.0.0.0 --port 8000
+CMD alembic upgrade head && opentelemetry-instrument uvicorn $SERVICE.main:app --host 0.0.0.0 --port 8000
