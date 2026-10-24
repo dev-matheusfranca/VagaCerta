@@ -17,6 +17,9 @@
   <img src="https://img.shields.io/badge/OpenTelemetry-425CC7?logo=opentelemetry&logoColor=white" alt="OpenTelemetry" />
   <img src="https://img.shields.io/badge/Grafana-F46800?logo=grafana&logoColor=white" alt="Grafana" />
   <img src="https://img.shields.io/badge/Pact-contratos-0B7285" alt="Pact" />
+  <img src="https://img.shields.io/badge/Kubernetes-kind%20%2B%20Helm-326CE5?logo=kubernetes&logoColor=white" alt="Kubernetes com kind e Helm" />
+  <img src="https://img.shields.io/badge/Ollama-LLM%20local-000000?logo=ollama&logoColor=white" alt="Ollama" />
+  <img src="https://img.shields.io/badge/MCP-servidor-6E56CF" alt="Servidor MCP" />
   <img src="https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white" alt="Vue 3" />
   <img src="https://img.shields.io/badge/licen%C3%A7a-MIT-green" alt="Licença MIT" />
 </p>
@@ -38,6 +41,7 @@
 - [API](#api)
 - [Eventos](#eventos)
 - [Observabilidade](#observabilidade)
+- [Assistente com IA](#assistente-com-ia)
 - [Testes](#testes)
 - [Desempenho](#desempenho)
 - [Roadmap](#roadmap)
@@ -71,6 +75,8 @@ O projeto evolui em fases, até uma arquitetura completa orientada a eventos. Ve
 - E-mails de confirmação, cancelamento e lembrete (24 h antes, ou 2 h para quem agendou em cima da hora).
 - **Lista de espera:** em dia lotado, o cliente entra na fila; se alguém cancelar, o horário fica
   reservado para ele por 15 minutos e chega um e-mail com o botão "Quero esse horário".
+- **Assistente:** o cliente agenda conversando ("quero cortar o cabelo na terça à tarde"). O assistente
+  procura os horários e agenda, com um modelo de IA que roda localmente.
 
 **Para o estabelecimento**
 
@@ -88,6 +94,8 @@ O projeto evolui em fases, até uma arquitetura completa orientada a eventos. Ve
 - Traces, métricas e logs com OpenTelemetry e Grafana: um cancelamento vira um único trace, do clique ao
   e-mail.
 - Testes de contrato com Pact entre todos os serviços, inclusive nos eventos do Kafka.
+- Servidor MCP com as ferramentas de agendamento, usado pelo assistente e por qualquer cliente MCP.
+- Kubernetes com Helm e kind: o CI sobe o sistema inteiro num cluster e roda o teste de carga nele.
 - Teste de carga no CI e documentação interativa (OpenAPI/Swagger) em todos os serviços.
 
 ## Telas
@@ -120,6 +128,11 @@ flowchart LR
     gateway -->|/api/booking| booking["Booking"]
     gateway -->|/api/waitlist| waitlist["Waitlist"]
     gateway -->|/api/analytics| analytics["Analytics"]
+    gateway -->|/api/assistant| assistant["Assistant"]
+    gateway -->|/mcp| mcp["MCP server"]
+    assistant -->|MCP| mcp
+    assistant -->|LLM| ollama["Ollama"]
+    mcp -->|REST| catalog & booking & waitlist
     booking -->|REST + cache| catalog
     waitlist -->|"REST + token de serviço"| booking
     booking -.->|outbox| relay["Outbox relay"]
@@ -147,6 +160,9 @@ Grafana LGTM (omitidos no diagrama).
 | **notification** | Consome eventos, agenda lembretes e envia e-mails pelo RabbitMQ |
 | **analytics** | Números do painel por dia (API só de leitura) |
 | **analytics-worker** | Projeta os eventos de agendamento e da lista de espera nos read models |
+| **mcp-server** | Ferramentas MCP de agendamento: estabelecimentos, horários, agendar, lista de espera e cancelar |
+| **assistant** | Agente que conversa com o modelo e executa as ferramentas MCP que ele pede |
+| **ollama** | Roda o modelo de linguagem localmente (perfil `ai` do Compose) |
 | **keycloak** | Identidade: login do dono (PKCE), conta de serviço do Waitlist, papéis e grupos |
 | **lgtm** | OpenTelemetry Collector, Tempo, Prometheus, Loki e Grafana num só container |
 | **web** | Front-end do cliente e do estabelecimento |
@@ -204,6 +220,10 @@ sequenceDiagram
   serviços de escrita.
 - **Contratos dirigidos pelo consumidor.** Cada consumidor declara o que usa de uma API ou de um evento, e
   o provedor verifica esses contratos na própria suíte.
+- **IA que age por ferramentas.** O modelo só agenda pelas ferramentas do servidor MCP, que chamam as
+  mesmas APIs do site. Ele não inventa horários e não passa por cima da regra de conflito do banco.
+- **O mesmo sistema no Compose e no Kubernetes.** As configurações viram imagens, e um chart Helm
+  genérico descreve todos os serviços.
 
 Cada decisão está registrada numa ADR:
 
@@ -219,6 +239,8 @@ Cada decisão está registrada numa ADR:
 | [0008](docs/adr/0008-observabilidade-com-opentelemetry.md) | Observabilidade com OpenTelemetry e a stack LGTM |
 | [0009](docs/adr/0009-analytics-com-cqrs.md) | Serviço Analytics com CQRS |
 | [0010](docs/adr/0010-testes-de-contrato-com-pact.md) | Testes de contrato com Pact |
+| [0011](docs/adr/0011-assistente-com-llm-local-e-mcp.md) | Assistente com LLM local e servidor MCP |
+| [0012](docs/adr/0012-kubernetes-com-kind-e-helm.md) | Kubernetes com kind e Helm |
 
 ## Tecnologias
 
@@ -231,10 +253,11 @@ Cada decisão está registrada numa ADR:
 | E-mail | aiosmtplib, templates HTML, Mailpit para entrega local |
 | Banco de dados | PostgreSQL 17 (exclusion constraint com `btree_gist`, JSONB) |
 | Observabilidade | OpenTelemetry (instrumentação automática e manual), Grafana, Tempo, Prometheus e Loki (`grafana/otel-lgtm`) |
+| IA | Ollama (`qwen3:4b` por padrão), Model Context Protocol (SDK oficial em Python), atributos GenAI do OpenTelemetry |
 | Front-end | Vue 3, TypeScript, Vite, Tailwind CSS 4, Vue Router, ícones Lucide |
 | Testes | pytest, Testcontainers (PostgreSQL, Kafka, RabbitMQ), Pact, Hypothesis, import-linter, k6 |
 | Qualidade | ruff (lint e formatação), mypy (strict), vue-tsc |
-| Infraestrutura | Docker, Docker Compose, nginx, Kafka UI, GitHub Actions |
+| Infraestrutura | Docker, Docker Compose, Kubernetes (kind), Helm, nginx, Kafka UI, GitHub Actions |
 | Ferramentas | Workspace do uv (um lock file para todos os serviços Python) |
 
 ## Estrutura do projeto
@@ -247,12 +270,17 @@ VagaCerta/
 │   ├── booking/                # disponibilidade, agendamentos, reservas, outbox e relay
 │   ├── waitlist/               # lista de espera, ofertas e worker da saga
 │   ├── analytics/              # read models do painel e worker que projeta os eventos
+│   ├── mcp-server/             # ferramentas MCP de agendamento
+│   ├── assistant/              # agente que conversa com o modelo no Ollama
 │   └── notification/           # consumidor de eventos, lembretes, e-mails e worker do RabbitMQ
 │       ├── migrations/         # (em cada serviço) migrações do Alembic
 │       ├── src/                # (em cada serviço) código do serviço
 │       └── tests/              # (em cada serviço) testes
 ├── libs/auth/                  # vagacerta-auth: validação dos tokens do Keycloak, usada pelos serviços
 ├── pacts/                      # contratos gerados pelos consumidores e verificados pelos provedores
+├── deploy/
+│   ├── helm/vagacerta/         # chart Helm com todos os serviços
+│   └── kind/                   # cluster kind e script de subida
 ├── web/                        # front-end em Vue 3, servido por nginx no Docker
 ├── gateway/dynamic.yml         # rotas e middlewares do Traefik
 ├── keycloak/                   # realm versionado e tema da tela de login
@@ -276,6 +304,8 @@ VagaCerta/
 | [Docker](https://docs.docker.com/get-docker/) com Compose | 24+ | Rodar tudo e os testes de integração |
 | [uv](https://docs.astral.sh/uv/) | 0.13+ | Desenvolver os serviços localmente |
 | [Node.js](https://nodejs.org/) | 24+ | Desenvolver o front-end localmente |
+| [Ollama](https://ollama.com/) | 0.40+ | Opcional: rodar o modelo do assistente na sua GPU |
+| [kind](https://kind.sigs.k8s.io/) e [Helm](https://helm.sh/) | 0.33+ e 4+ | Opcional: rodar no Kubernetes |
 
 ### Com Docker (recomendado)
 
@@ -292,13 +322,15 @@ dados de exemplo são criados: quatro estabelecimentos e um dia lotado na Clíni
 |---|---|
 | http://localhost:8080 | App (tudo passa pelo gateway) |
 | http://localhost:8080/painel | Painel do estabelecimento |
+| http://localhost:8080/assistente | Assistente (com o perfil `ai`) |
+| http://localhost:8080/mcp | Servidor MCP, para qualquer cliente MCP |
 | http://localhost:8025 | Mailpit: todos os e-mails enviados |
 | http://localhost:3000 | Grafana: dashboard do VagaCerta, traces, métricas e logs |
 | http://localhost:8090 | Kafka UI: tópicos `booking.events` e `waitlist.events` |
 | http://localhost:15672 | RabbitMQ: filas de e-mail, retry e dead-letter (`guest` / `guest`) |
 | http://localhost:8081 | Dashboard do Traefik |
 | http://localhost:8080/auth/admin | Console do Keycloak (`admin` / `admin`) |
-| http://localhost:8001/docs · :8002 · :8003 · :8004 | Swagger do Catalog, Booking, Waitlist e Analytics |
+| http://localhost:8001/docs · :8002 · :8003 · :8004 · :8006 | Swagger do Catalog, Booking, Waitlist, Analytics e Assistant |
 
 **Usuários de demonstração** (senha `vagacerta`):
 
@@ -310,6 +342,40 @@ dados de exemplo são criados: quatro estabelecimentos e um dia lotado na Clíni
 
 > As credenciais e o segredo do cliente de serviço são de demonstração e ficam no realm versionado. Num
 > ambiente real, viriam de um cofre de segredos.
+
+### Com o assistente de IA
+
+O assistente e o Ollama ficam no perfil `ai`. Na primeira subida, o modelo (cerca de 2,5 GB) é baixado:
+
+```bash
+docker compose --profile ai up --build
+```
+
+Com o Ollama instalado na máquina, o modelo roda direto na sua GPU. Nesse caso, suba só o assistente
+apontando para ele:
+
+```bash
+ollama pull qwen3:4b
+OLLAMA_URL=http://host.docker.internal:11434 docker compose up --build assistant
+```
+
+Em GPUs com pouca memória, `OLLAMA_FLASH_ATTENTION=1` e `OLLAMA_KV_CACHE_TYPE=q8_0` nas variáveis de
+ambiente do Ollama reduzem pela metade a memória do cache de contexto. Outro modelo com suporte a
+ferramentas pode ser usado com `OLLAMA_MODEL`.
+
+### No Kubernetes (kind + Helm)
+
+O script cria um cluster kind, constrói as imagens, carrega no nó e instala o chart. O gateway, o
+Grafana e o Mailpit ficam nas mesmas portas do Compose, então pare o Compose antes:
+
+```bash
+docker compose stop
+deploy/kind/up.sh                  # WITH_ASSISTANT=1 deploy/kind/up.sh inclui o assistente
+kubectl get pods
+```
+
+Rodar o script de novo atualiza o cluster com as imagens novas. Para remover tudo:
+`kind delete cluster --name vagacerta`.
 
 ### Localmente, sem containers para os serviços
 
@@ -329,6 +395,8 @@ uv run uvicorn catalog.main:app --port 8001 --reload
 uv run uvicorn booking.main:app --port 8002 --reload
 uv run uvicorn waitlist.main:app --port 8003 --reload
 uv run uvicorn analytics.main:app --port 8004 --reload
+uv run uvicorn mcp_server.main:app --port 8005 --reload
+uv run uvicorn assistant.main:app --port 8006 --reload
 uv run python -m booking.outbox_relay
 uv run python -m waitlist.worker
 uv run python -m analytics.worker
@@ -364,6 +432,10 @@ Para ver a telemetria rodando localmente, suba também o `lgtm` e troque `uv run
 | notification | `SMTP_HOST` / `SMTP_PORT` | `localhost` / `1025` |
 | notification | `WEB_URL` | `http://localhost:8080` (usada nos links dos e-mails) |
 | analytics | `DATABASE_URL` | `postgresql+asyncpg://vagacerta:vagacerta@localhost:5437/analytics` |
+| mcp-server | `CATALOG_URL` / `BOOKING_URL` / `WAITLIST_URL` | `http://localhost:8001` / `:8002` / `:8003` |
+| mcp-server | `WEB_URL` | `http://localhost:8080` (usada nos links dos agendamentos) |
+| assistant | `OLLAMA_URL` / `OLLAMA_MODEL` | `http://localhost:11434` / `qwen3:4b` |
+| assistant | `MCP_URL` / `TIMEZONE` | `http://localhost:8005/mcp` / `America/Sao_Paulo` |
 | relay, waitlist, notification, analytics | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9094` |
 | todos | `OTEL_SERVICE_NAME`, `OTEL_EXPORTER_OTLP_ENDPOINT` e demais `OTEL_*` | definidas no `docker-compose.yml` |
 
@@ -387,6 +459,9 @@ Com a stack no ar (`docker compose up --build`):
    worker da saga, reserva no Booking, Notification, RabbitMQ e o envio do e-mail.
 7. **Veja os bastidores.** Os eventos no [Kafka UI](http://localhost:8090) e as filas no
    [RabbitMQ](http://localhost:15672).
+8. **Agende conversando.** Com o perfil `ai`, abra http://localhost:8080/assistente e peça, por exemplo,
+   "quero cortar o cabelo na barbearia na terça à tarde". Entre as mensagens aparecem as ferramentas que o
+   modelo usou, e o trace do `POST /chat` no Grafana mostra cada chamada ao modelo com os tokens gastos.
 
 ## API
 
@@ -428,6 +503,25 @@ A documentação interativa completa fica em `/docs` em cada serviço.
 | Método | Endpoint | Acesso | Descrição |
 |---|---|---|---|
 | `GET` | `/businesses/{id}/stats?from=&to=` | `owner` do estabelecimento | Agendamentos, cancelamentos, receita e ofertas da lista de espera por dia |
+
+### Assistant — `:8006` · `/api/assistant`
+
+| Método | Endpoint | Acesso | Descrição |
+|---|---|---|---|
+| `POST` | `/chat` | público | Recebe a conversa e devolve a conversa com a resposta e as ferramentas usadas |
+
+### MCP server — `:8005` · `/mcp`
+
+Streamable HTTP, sem estado. Ferramentas:
+
+| Ferramenta | O que faz |
+|---|---|
+| `list_businesses` | Lista os estabelecimentos com id, nome, categoria e endereço |
+| `get_business` | Profissionais e serviços (duração e preço) de um estabelecimento |
+| `find_slots` | Horários livres de um profissional para um serviço num dia, no fuso do estabelecimento |
+| `book_appointment` | Agenda um horário e devolve o link do agendamento |
+| `join_waitlist` | Põe a pessoa na fila de um dia lotado |
+| `cancel_booking` | Cancela um agendamento confirmado |
 
 Exemplo:
 
@@ -515,15 +609,51 @@ logs para o container `grafana/otel-lgtm`. O Grafana sobe em http://localhost:30
 |---|---|
 | <img src="docs/screenshots/grafana-dashboard.png" alt="Dashboard do VagaCerta no Grafana com métricas de negócio e dos serviços" /> | <img src="docs/screenshots/grafana-trace.png" alt="Trace de um cancelamento atravessando Booking, relay, Waitlist e Notification" /> |
 
+## Assistente com IA
+
+```mermaid
+sequenceDiagram
+    participant P as Pessoa
+    participant A as Assistant
+    participant O as Ollama
+    participant M as MCP server
+    participant B as Booking
+    P->>A: "quero cortar o cabelo na terça à tarde"
+    A->>M: lista as ferramentas
+    A->>O: conversa + ferramentas
+    O-->>A: chama find_slots
+    A->>M: find_slots
+    M->>B: GET /availability
+    B-->>M: horários em UTC
+    M-->>A: horários no fuso da barbearia
+    A->>O: resultado da ferramenta
+    O-->>A: "tenho 14:00 e 15:30, qual prefere?"
+    A-->>P: resposta e passos usados
+```
+
+O assistente não conhece regras de negócio: ele repassa ao modelo as ferramentas do servidor MCP e
+executa as que o modelo pedir, até o modelo responder sem chamar nenhuma (no máximo 8 passos). O modelo
+recebe a data de hoje e a instrução de confirmar os dados antes de agendar. A conversa fica no navegador,
+e o serviço não guarda estado.
+
+O servidor MCP também atende outros clientes. Para explorar as ferramentas com o MCP Inspector:
+
+```bash
+npx @modelcontextprotocol/inspector
+```
+
+Conecte em `http://localhost:8080/mcp` com o transporte Streamable HTTP.
+
 ## Testes
 
 ```bash
-uv run pytest            # 81 testes (os de integração sobem containers com Docker)
+uv run pytest            # 90 testes (os de integração sobem containers com Docker)
 uv run lint-imports      # regras de arquitetura
-uv run mypy libs/auth/src services/catalog/src services/booking/src services/notification/src services/waitlist/src services/analytics/src
+uv run mypy libs/auth/src services/*/src
 uv run ruff check && uv run ruff format --check
 npm --prefix web run build                      # checa os tipos do front-end
 docker compose --profile load run --rm k6       # teste de carga contra a stack no ar
+helm lint deploy/helm/vagacerta                 # valida o chart
 ```
 
 | Tipo | O que prova |
@@ -539,6 +669,9 @@ docker compose --profile load run --rm k6       # teste de carga contra a stack 
 | Projeções (CQRS) | Os read models do Analytics somam os eventos certos e ignoram reentregas |
 | Contrato (Pact) | Cada consumidor declara o que usa das APIs e dos eventos; Catalog, Booking e Waitlist verificam esses contratos contra o código real |
 | Rastreamento | O evento gravado no outbox leva o contexto do trace da requisição |
+| Ferramentas MCP | Num cliente MCP em memória: horários no fuso do estabelecimento e erros esperados como mensagem para o modelo |
+| Agente | Com um modelo falso: o resultado das ferramentas volta para o modelo, o loop para após 8 passos e um modelo fora do ar vira `503` |
+| Kubernetes | O CI sobe tudo num cluster kind com o chart Helm e roda o teste de carga contra ele |
 | Segurança | Tokens RS256 assinados no teste: sem token `401`, papel errado `403`, token forjado `401`, dono de outro estabelecimento `403` |
 | Arquitetura | Os módulos de domínio não dependem de frameworks nem de brokers |
 | Carga (k6) | 50 pessoas disputam o mesmo horário: só uma consegue; a disponibilidade mantém p95 abaixo de 500 ms |
@@ -554,6 +687,7 @@ Os contratos ficam em [`pacts/`](pacts), um arquivo por par consumidor e provedo
 | Waitlist | Booking | Reserva de horário livre e ocupado; confirmação e liberação, inclusive de reserva vencida; evento `booking.cancelled` |
 | Notification | Booking, Waitlist | `booking.created`, `booking.cancelled` e `waitlist.offer_created` |
 | Analytics | Booking, Waitlist | Eventos de agendamento e os três eventos de oferta |
+| MCP server | Catalog, Booking, Waitlist | Estabelecimentos, horários livres, agendamento, cancelamento e entrada na fila |
 
 Os testes dos consumidores rodam os clientes reais contra o mock do Pact e regravam os contratos. Os dos
 provedores sobem a API num PostgreSQL do Testcontainers, preparam os dados de cada *provider state* e
@@ -561,8 +695,8 @@ geram os eventos com as mesmas funções que gravam o outbox. Remover ou renomea
 consumidor quebra a suíte do provedor.
 
 A cada push na `main` e na `develop`, e em todo pull request, o GitHub Actions roda a suíte, confere se os
-contratos versionados estão em dia, faz o build do front e roda um job de ponta a ponta que sobe a stack
-completa com Docker Compose e executa o k6.
+contratos versionados estão em dia e faz o build do front. Dois jobs de ponta a ponta sobem o sistema
+inteiro, um com Docker Compose e outro num cluster kind com o chart Helm, e executam o k6.
 
 ## Desempenho
 
@@ -578,7 +712,8 @@ disponibilidade sem pausa enquanto 50 tentam agendar o mesmo horário ao mesmo t
 O teste mostrou que cada consulta chamava o Catalog por HTTP. Um cache de 30 segundos no Booking resolveu
 o gargalo ([ADR 0007](docs/adr/0007-cache-do-catalogo.md)). Com o OpenTelemetry ligado em todos os
 serviços, o mesmo cenário mediu 168 req/s e p95 de 205 ms: o custo da telemetria ficou dentro da variação
-entre execuções. Números medidos no Docker Desktop de uma máquina de desenvolvimento.
+entre execuções. No cluster kind, com tudo no mesmo nó, foram 137 req/s e p95 de 280 ms. Números medidos
+no Docker Desktop de uma máquina de desenvolvimento.
 
 ## Roadmap
 
@@ -589,7 +724,7 @@ entre execuções. Números medidos no Docker Desktop de uma máquina de desenvo
       API gateway com Traefik; teste de carga com k6 no CI
 - [x] **Fase 4** — Observabilidade com OpenTelemetry, Prometheus, Grafana e Loki; testes de contrato com
       Pact; serviço de Analytics com CQRS
-- [ ] **Fase 5** — Kubernetes com kind e Helm; agendamento em linguagem natural com LLM local (Ollama) e
+- [x] **Fase 5** — Kubernetes com kind e Helm; agendamento em linguagem natural com LLM local (Ollama) e
       servidor MCP
 
 O que mudou em cada versão está no [CHANGELOG](CHANGELOG.md).
