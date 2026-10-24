@@ -24,6 +24,10 @@ http:
       rule: PathPrefix(`/api/analytics`)
       service: analytics
       middlewares: [strip-api, security-headers]
+    assistant:
+      rule: PathPrefix(`/api/assistant`)
+      service: assistant
+      middlewares: [write-rate-limit, strip-api, security-headers]
     mcp:
       rule: PathPrefix(`/mcp`)
       service: mcp-server
@@ -66,6 +70,9 @@ http:
     analytics:
       loadBalancer:
         servers: [{ url: http://analytics:8000 }]
+    assistant:
+      loadBalancer:
+        servers: [{ url: http://assistant:8000 }]
     mcp-server:
       loadBalancer:
         servers: [{ url: http://mcp-server:8000 }]
