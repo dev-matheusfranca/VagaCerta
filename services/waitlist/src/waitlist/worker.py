@@ -4,6 +4,7 @@ import logging
 from datetime import UTC, datetime
 
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
+from opentelemetry import context, propagate, trace
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -15,6 +16,7 @@ from waitlist.events import BOOKING_TOPIC, BookingCancelled
 from waitlist.models import OutboxEvent
 
 Sessionmaker = async_sessionmaker[AsyncSession]
+tracer = trace.get_tracer("waitlist")
 
 
 async def consume_cancellations(
@@ -26,8 +28,15 @@ async def consume_cancellations(
         except ValidationError:
             pass  # outros tipos de evento, ou cancelamentos antigos que ainda não traziam o horário
         else:
-            async with sessionmaker() as session:
-                await saga.handle_cancellation(event, session, booking, OFFER_MINUTES)
+            # Continua o trace de quem cancelou, que chega nos cabeçalhos da mensagem.
+            carrier = {key: value.decode() for key, value in record.headers}
+            with tracer.start_as_current_span(
+                "process booking.cancelled",
+                context=propagate.extract(carrier),
+                kind=trace.SpanKind.CONSUMER,
+            ):
+                async with sessionmaker() as session:
+                    await saga.handle_cancellation(event, session, booking, OFFER_MINUTES)
         await consumer.commit()
 
 
@@ -48,9 +57,13 @@ async def publish_pending(session: AsyncSession, producer: AIOKafkaProducer) -> 
     )
     published = 0
     for event in events:
-        await producer.send_and_wait(
-            event.topic, json.dumps(event.payload).encode(), key=event.key.encode()
-        )
+        token = context.attach(propagate.extract(event.trace_context))
+        try:
+            await producer.send_and_wait(
+                event.topic, json.dumps(event.payload).encode(), key=event.key.encode()
+            )
+        finally:
+            context.detach(token)
         event.published_at = datetime.now(UTC)
         published += 1
     await session.commit()
