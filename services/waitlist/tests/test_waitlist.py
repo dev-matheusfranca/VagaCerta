@@ -124,6 +124,11 @@ async def offers_by_email(session) -> dict[str, str]:
     return {offer.entry.customer_email: offer.status for offer in offers}
 
 
+async def published_types(session) -> list[str]:
+    events = await session.scalars(select(OutboxEvent).order_by(OutboxEvent.id))
+    return [event.payload["type"] for event in events]
+
+
 async def test_joining_returns_the_position_in_line(client):
     first = await join(client, "ana@example.com")
     second = await join(client, "bia@example.com")
@@ -196,6 +201,7 @@ async def test_claiming_the_offer_confirms_the_booking(client, session, booking)
 
     assert claimed.json()["status"] == "claimed"
     assert booking.status[offer.booking_id] == "confirmed"
+    assert await published_types(session) == ["waitlist.offer_created", "waitlist.offer_claimed"]
     assert (await client.get(f"/offers/{offer.id}")).json()["entry"]["details"]["service_name"] == (
         "Avaliação"
     )
@@ -210,6 +216,11 @@ async def test_expired_offer_is_released_and_goes_to_the_next_in_line(client, se
     await saga.expire_offers(session, booking, first.expires_at + timedelta(seconds=1), 15)
 
     assert booking.status[first.booking_id] == "released"
+    assert await published_types(session) == [
+        "waitlist.offer_created",
+        "waitlist.offer_expired",
+        "waitlist.offer_created",
+    ]
     assert await offers_by_email(session) == {
         "ana@example.com": "expired",
         "bia@example.com": "pending",
