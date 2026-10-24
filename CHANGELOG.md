@@ -5,6 +5,30 @@ Todas as mudanças relevantes do projeto ficam registradas neste arquivo.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto usa
 [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.5.0] - 2026-10-24
+
+### Adicionado
+
+- Servidor MCP com as ferramentas de agendamento (listar estabelecimentos, ver serviços e profissionais,
+  buscar horários livres, agendar, entrar na lista de espera e cancelar), também exposto no gateway em
+  `/mcp`.
+- Assistente que agenda conversando: um modelo local no Ollama (`qwen3:4b-instruct`) usa as ferramentas
+  MCP, e o site ganhou a página "Agende conversando".
+- Spans com os atributos GenAI do OpenTelemetry para cada chamada ao modelo e cada ferramenta executada.
+- Testes de contrato do servidor MCP com Catalog, Booking e Waitlist, e verificação HTTP do Waitlist como
+  provedor.
+- Chart Helm com o sistema inteiro e script que sobe tudo num cluster kind.
+- Job no CI que cria o cluster kind, instala o chart e roda o teste de carga contra ele.
+- Assistente e Ollama no perfil `ai` do Docker Compose.
+- ADRs 0011 (assistente com LLM local e MCP) e 0012 (Kubernetes com kind e Helm).
+
+### Alterado
+
+- Realm e tema do Keycloak, rotas do Traefik e dashboard do Grafana são construídos em imagens, usadas
+  pelo Docker Compose e pelo Kubernetes.
+- O projeto do Docker Compose tem nome fixo (`vagacerta`), para as imagens terem sempre o mesmo nome.
+- As verificações de contrato dos provedores compartilham a subida do servidor de teste.
+
 ## [0.4.0] - 2026-10-24
 
 ### Adicionado
@@ -99,6 +123,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 - Testes unitários, baseados em propriedades, de integração, de concorrência e de arquitetura.
 - Docker Compose, pipeline no GitHub Actions, README e ADRs 0001 e 0002.
 
+[0.5.0]: https://github.com/dev-matheusfranca/VagaCerta/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/dev-matheusfranca/VagaCerta/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/dev-matheusfranca/VagaCerta/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/dev-matheusfranca/VagaCerta/compare/v0.2.0...v0.2.1
