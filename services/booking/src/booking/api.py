@@ -11,9 +11,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from booking import events, models, schemas
-from booking.auth import Claims, require_role
 from booking.catalog_client import Business, CatalogClient, Professional, Service
 from booking.domain import available_slots
+from vagacerta_auth import Claims, require_role
 
 router = APIRouter()
 BOOKINGS = metrics.get_meter("booking").create_counter(

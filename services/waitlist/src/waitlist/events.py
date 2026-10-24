@@ -23,7 +23,7 @@ class BookingCancelled(BaseModel):
     data: FreedSlot
 
 
-def offer_created(offer: Offer) -> OutboxEvent:
+def offer_event(offer: Offer, type: str) -> OutboxEvent:
     trace_context: dict[str, str] = {}
     propagate.inject(trace_context)
     return OutboxEvent(
@@ -32,10 +32,11 @@ def offer_created(offer: Offer) -> OutboxEvent:
         key=str(offer.id),
         payload={
             "event_id": str(uuid4()),
-            "type": "waitlist.offer_created",
+            "type": type,
             "occurred_at": datetime.now(UTC).isoformat(),
             "data": {
                 "offer_id": str(offer.id),
+                "business_id": str(offer.entry.business_id),
                 "booking_id": str(offer.booking_id),
                 "starts_at": offer.starts_at.isoformat(),
                 "ends_at": offer.ends_at.isoformat(),

@@ -48,6 +48,17 @@ export interface Booking {
 
 export type NewBooking = Omit<Booking, 'id' | 'ends_at' | 'status'>
 
+export interface DayStats {
+  day: string
+  bookings: number
+  cancellations: number
+  revenue_cents: number
+  offers: number
+  offers_claimed: number
+  offers_expired: number
+  recovered_revenue_cents: number
+}
+
 export interface WaitlistEntryIn {
   business_id: string
   professional_id: string
@@ -117,6 +128,10 @@ export const api = {
   offer: (id: string) => request<Offer>(`/api/waitlist/offers/${id}`),
   agenda: async (businessId: string, date: string) =>
     request<Booking[]>(`/api/booking/businesses/${businessId}/agenda?date=${date}`, {
+      headers: await authorization(),
+    }),
+  stats: async (businessId: string, from: string, to: string) =>
+    request<DayStats[]>(`/api/analytics/businesses/${businessId}/stats?from=${from}&to=${to}`, {
       headers: await authorization(),
     }),
   claimOffer: (id: string) =>

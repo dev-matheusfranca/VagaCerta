@@ -1,5 +1,5 @@
 [tool.uv.workspace]
-members = ["services/*"]
+members = ["services/*", "libs/*"]
 
 [tool.ruff]
 line-length = 100
@@ -11,7 +11,7 @@ select = ["E", "F", "I", "UP", "B", "ASYNC", "RUF"]
 "services/*/tests/*" = ["ASYNC110"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["catalog", "booking", "notification", "waitlist"]
+known-first-party = ["catalog", "booking", "notification", "waitlist", "analytics", "vagacerta_auth"]
 
 [tool.mypy]
 strict = true

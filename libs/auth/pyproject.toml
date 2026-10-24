@@ -1,0 +1,13 @@
+[project]
+name = "vagacerta-auth"
+version = "0.1.0"
+description = "Keycloak access token validation shared by the VagaCerta services."
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.161.1",
+    "pyjwt[crypto]>=2.15.1",
+]
+
+[build-system]
+requires = ["uv_build>=0.13,<0.14"]
+build-backend = "uv_build"

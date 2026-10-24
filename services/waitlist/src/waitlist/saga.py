@@ -6,7 +6,7 @@ from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from waitlist.booking_client import BookingClient
-from waitlist.events import BookingCancelled, offer_created
+from waitlist.events import BookingCancelled, offer_event
 from waitlist.models import Entry, Offer, ProcessedEvent
 
 OFFERS = metrics.get_meter("waitlist").create_counter(
@@ -50,7 +50,7 @@ async def offer_slot(
             entry.status = "offered"
             session.add(offer)
             await session.flush()
-            session.add(offer_created(offer))
+            session.add(offer_event(offer, "waitlist.offer_created"))
             OFFERS.add(1, {"outcome": "offered"})
             return offer
     return None
@@ -72,10 +72,15 @@ async def claim(
     offer = await session.get(Offer, offer_id, with_for_update=True)
     if offer and offer.status == "pending" and offer.expires_at > now:
         if await booking.confirm(offer.booking_id):
-            offer.status, offer.entry.status = "claimed", "booked"
-            OFFERS.add(1, {"outcome": "claimed"})
+            settle(session, offer, "claimed", entry_status="booked")
             await session.commit()
     return offer
+
+
+def settle(session: AsyncSession, offer: Offer, outcome: str, entry_status: str) -> None:
+    offer.status, offer.entry.status = outcome, entry_status
+    session.add(offer_event(offer, f"waitlist.offer_{outcome}"))
+    OFFERS.add(1, {"outcome": outcome})
 
 
 async def expire_offers(
@@ -89,12 +94,10 @@ async def expire_offers(
     )
     for offer in offers:
         if await booking.release(offer.booking_id):
-            offer.status, offer.entry.status = "expired", "waiting"
-            OFFERS.add(1, {"outcome": "expired"})
+            settle(session, offer, "expired", entry_status="waiting")
             await offer_slot(
                 session, booking, offer.entry.professional_id, offer.starts_at, minutes
             )
         else:
-            offer.status, offer.entry.status = "claimed", "booked"
-            OFFERS.add(1, {"outcome": "claimed"})
+            settle(session, offer, "claimed", entry_status="booked")
     await session.commit()

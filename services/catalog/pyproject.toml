@@ -12,12 +12,15 @@ dependencies = [
     "opentelemetry-instrumentation-asyncpg>=0.66b1",
     "opentelemetry-instrumentation-fastapi>=0.66b1",
     "opentelemetry-instrumentation-logging>=0.66b1",
-    "pyjwt[crypto]>=2.15.1",
     "sqlalchemy[asyncio]>=2.1.6",
     "tzdata>=2026.5",
     "uvicorn>=0.54.0",
+    "vagacerta-auth",
 ]
 
 [build-system]
 requires = ["uv_build>=0.13,<0.14"]
 build-backend = "uv_build"
+
+[tool.uv.sources]
+vagacerta-auth = { workspace = true }
