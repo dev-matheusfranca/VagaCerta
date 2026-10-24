@@ -24,5 +24,4 @@ const router = createRouter({
   scrollBehavior: (to) => (to.hash ? { el: to.hash, behavior: 'smooth' } : { top: 0 }),
 })
 
-
 createApp(App).use(router).mount('#app')

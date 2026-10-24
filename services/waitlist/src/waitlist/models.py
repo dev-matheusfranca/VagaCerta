@@ -52,6 +52,7 @@ class OutboxEvent(Base):
     key: Mapped[str] = mapped_column(String(100))
     payload: Mapped[dict[str, Any]] = mapped_column(JSONB)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    trace_context: Mapped[dict[str, str]] = mapped_column(JSONB, default=dict)
 
 
 class ProcessedEvent(Base):

@@ -2,6 +2,8 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
+from opentelemetry import propagate
+
 from booking.catalog_client import Business, Professional, Service
 from booking.models import Booking, OutboxEvent
 
@@ -9,6 +11,9 @@ TOPIC = "booking.events"
 
 
 def _event(booking: Booking, type: str, data: dict[str, Any]) -> OutboxEvent:
+    # Guarda o trace da requisição para o relay continuá-lo ao publicar no Kafka.
+    trace_context: dict[str, str] = {}
+    propagate.inject(trace_context)
     return OutboxEvent(
         topic=TOPIC,
         key=str(booking.id),
@@ -18,6 +23,7 @@ def _event(booking: Booking, type: str, data: dict[str, Any]) -> OutboxEvent:
             "occurred_at": datetime.now(UTC).isoformat(),
             "data": {"booking_id": str(booking.id), **data},
         },
+        trace_context=trace_context,
     )
 
 
@@ -28,6 +34,7 @@ def booking_created(
         booking,
         "booking.created",
         {
+            "business_id": str(booking.business_id),
             "starts_at": booking.starts_at.isoformat(),
             "ends_at": booking.ends_at.isoformat(),
             "customer_name": booking.customer_name,

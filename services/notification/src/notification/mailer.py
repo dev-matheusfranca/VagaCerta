@@ -7,8 +7,13 @@ from email.message import EmailMessage
 from aio_pika import DeliveryMode, Message
 from aio_pika.abc import AbstractChannel, AbstractIncomingMessage
 from aiosmtplib import SMTPException
+from opentelemetry import metrics, propagate, trace
 
 logger = logging.getLogger(__name__)
+tracer = trace.get_tracer("notification")
+EMAILS = metrics.get_meter("notification").create_counter(
+    "vagacerta.emails", unit="{email}", description="E-mails por resultado da entrega"
+)
 
 EMAIL_QUEUE = "notification.email"
 DEAD_LETTER_QUEUE = "notification.email.dead"
@@ -57,15 +62,23 @@ async def deliver(
     send: Send,
     retry_delays: tuple[float, ...],
 ) -> None:
-    try:
-        await send(email.message_from_bytes(message.body, policy=policy.default))
-    except (SMTPException, OSError) as error:
-        failures = int(message.headers.get("x-failed-attempts", 0)) + 1  # type: ignore[arg-type]
-        queue = retry_queue(failures) if failures <= len(retry_delays) else DEAD_LETTER_QUEUE
-        logger.warning(
-            "E-mail delivery failed (%s), attempt %s, moving to %s", error, failures, queue
-        )
-        await _publish(channel, message.body, queue, failures)
+    with tracer.start_as_current_span(
+        "send e-mail",
+        context=propagate.extract(message.headers),
+        kind=trace.SpanKind.CONSUMER,
+    ):
+        try:
+            await send(email.message_from_bytes(message.body, policy=policy.default))
+            EMAILS.add(1, {"outcome": "sent"})
+        except (SMTPException, OSError) as error:
+            failures = int(message.headers.get("x-failed-attempts", 0)) + 1  # type: ignore[arg-type]
+            retry = failures <= len(retry_delays)
+            queue = retry_queue(failures) if retry else DEAD_LETTER_QUEUE
+            logger.warning(
+                "E-mail delivery failed (%s), attempt %s, moving to %s", error, failures, queue
+            )
+            await _publish(channel, message.body, queue, failures)
+            EMAILS.add(1, {"outcome": "retried" if retry else "dead_lettered"})
     await message.ack()
 
 

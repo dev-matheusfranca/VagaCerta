@@ -4,6 +4,7 @@ import os
 from datetime import UTC, datetime
 
 from aiokafka import AIOKafkaProducer
+from opentelemetry import context, propagate
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -24,9 +25,13 @@ async def publish_pending(session: AsyncSession, producer: AIOKafkaProducer) -> 
     )
     published = 0
     for event in events:
-        await producer.send_and_wait(
-            event.topic, json.dumps(event.payload).encode(), key=event.key.encode()
-        )
+        token = context.attach(propagate.extract(event.trace_context))
+        try:
+            await producer.send_and_wait(
+                event.topic, json.dumps(event.payload).encode(), key=event.key.encode()
+            )
+        finally:
+            context.detach(token)
         event.published_at = datetime.now(UTC)
         published += 1
     await session.commit()

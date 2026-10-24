@@ -9,10 +9,10 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select, text, update
 
-from booking.auth import AUDIENCE, TokenVerifier
 from booking.catalog_client import Business, Professional, Service, WorkingHours
 from booking.main import create_app
 from booking.models import Booking, OutboxEvent
+from vagacerta_auth import AUDIENCE, TokenVerifier
 
 TZ = ZoneInfo("America/Sao_Paulo")
 TOMORROW = datetime.now(TZ).date() + timedelta(days=1)

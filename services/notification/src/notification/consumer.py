@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from email.message import EmailMessage
 
 from aiokafka import AIOKafkaConsumer
+from opentelemetry import propagate, trace
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -13,6 +14,7 @@ from notification.events import BookingCreated, BookingDetails, Event, OfferCrea
 from notification.models import Booking, ProcessedEvent
 
 logger = logging.getLogger(__name__)
+tracer = trace.get_tracer("notification")
 
 Publish = Callable[[EmailMessage], Awaitable[None]]
 
@@ -48,8 +50,14 @@ async def consume(
         try:
             event = event_adapter.validate_json(record.value)
         except ValidationError:
-            logger.warning("Skipping unknown event at offset %s", record.offset)
+            logger.debug("Skipping event this service does not handle at offset %s", record.offset)
         else:
-            async with sessionmaker() as session:
-                await handle_event(event, session, publish, datetime.now(UTC))
+            carrier = {key: value.decode() for key, value in record.headers}
+            with tracer.start_as_current_span(
+                f"process {event.type}",
+                context=propagate.extract(carrier),
+                kind=trace.SpanKind.CONSUMER,
+            ):
+                async with sessionmaker() as session:
+                    await handle_event(event, session, publish, datetime.now(UTC))
         await consumer.commit()

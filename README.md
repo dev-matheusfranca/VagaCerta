@@ -14,6 +14,9 @@
   <img src="https://img.shields.io/badge/Keycloak-26-4D4D4D?logo=keycloak&logoColor=white" alt="Keycloak 26" />
   <img src="https://img.shields.io/badge/Traefik-3-24A1C1?logo=traefikproxy&logoColor=white" alt="Traefik 3" />
   <img src="https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL 17" />
+  <img src="https://img.shields.io/badge/OpenTelemetry-425CC7?logo=opentelemetry&logoColor=white" alt="OpenTelemetry" />
+  <img src="https://img.shields.io/badge/Grafana-F46800?logo=grafana&logoColor=white" alt="Grafana" />
+  <img src="https://img.shields.io/badge/Pact-contratos-0B7285" alt="Pact" />
   <img src="https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white" alt="Vue 3" />
   <img src="https://img.shields.io/badge/licen%C3%A7a-MIT-green" alt="Licença MIT" />
 </p>
@@ -34,6 +37,7 @@
 - [Roteiro de demonstração](#roteiro-de-demonstração)
 - [API](#api)
 - [Eventos](#eventos)
+- [Observabilidade](#observabilidade)
 - [Testes](#testes)
 - [Desempenho](#desempenho)
 - [Roadmap](#roadmap)
@@ -72,12 +76,18 @@ O projeto evolui em fases, até uma arquitetura completa orientada a eventos. Ve
 
 - **Painel com login** (Keycloak): agenda do dia por profissional, totais, reservas da lista de espera e
   cancelamento com um clique, que já repassa a vaga para a fila.
+- **Próximos 14 dias:** agendamentos confirmados, cancelamentos, receita prevista e quanto a lista de
+  espera recuperou, dia a dia.
 
 **Por baixo**
 
 - Microsserviços com banco próprio, eventos no Kafka com outbox transacional e e-mails no RabbitMQ com
   retry e dead-letter queue.
 - API gateway com rate limit, autenticação OIDC, tokens de serviço entre microsserviços.
+- Serviço de Analytics com CQRS: read models montados a partir dos eventos.
+- Traces, métricas e logs com OpenTelemetry e Grafana: um cancelamento vira um único trace, do clique ao
+  e-mail.
+- Testes de contrato com Pact entre todos os serviços, inclusive nos eventos do Kafka.
 - Teste de carga no CI e documentação interativa (OpenAPI/Swagger) em todos os serviços.
 
 ## Telas
@@ -89,6 +99,10 @@ O projeto evolui em fases, até uma arquitetura completa orientada a eventos. Ve
 | Oferta da lista de espera | Painel do estabelecimento |
 |---|---|
 | <img src="docs/screenshots/offer.png" alt="Oferta de vaga com contagem regressiva" /> | <img src="docs/screenshots/painel.png" alt="Painel com a agenda do dia por profissional" /> |
+
+| Painel: próximos 14 dias (Analytics) |
+|---|
+| <img src="docs/screenshots/painel-analytics.png" alt="Painel com agendamentos, cancelamentos, receita e recuperação pela fila nos próximos 14 dias" /> |
 
 | E-mail de confirmação | E-mail da lista de espera | Login (Keycloak com tema próprio) |
 |---|---|---|
@@ -105,6 +119,7 @@ flowchart LR
     gateway -->|/api/catalog| catalog["Catalog"]
     gateway -->|/api/booking| booking["Booking"]
     gateway -->|/api/waitlist| waitlist["Waitlist"]
+    gateway -->|/api/analytics| analytics["Analytics"]
     booking -->|REST + cache| catalog
     waitlist -->|"REST + token de serviço"| booking
     booking -.->|outbox| relay["Outbox relay"]
@@ -112,11 +127,14 @@ flowchart LR
     kafka --> worker["Waitlist worker"]
     worker -->|waitlist.events| kafka
     kafka --> notification["Notification"]
+    kafka --> projector["Analytics worker"]
+    projector -.->|read models| analytics
     notification <-->|tarefas de e-mail| rabbitmq{{RabbitMQ}}
     notification -->|SMTP| mailpit["Mailpit"]
 ```
 
-Cada serviço tem o próprio banco PostgreSQL (omitidos no diagrama).
+Cada serviço tem o próprio banco PostgreSQL, e todos os processos enviam traces, métricas e logs para o
+Grafana LGTM (omitidos no diagrama).
 
 | Componente | Responsabilidade |
 |---|---|
@@ -127,7 +145,10 @@ Cada serviço tem o próprio banco PostgreSQL (omitidos no diagrama).
 | **waitlist** | Fila de espera, ofertas e confirmação (API) |
 | **waitlist-worker** | Orquestra a saga: consome cancelamentos, reserva horários, expira ofertas e publica eventos |
 | **notification** | Consome eventos, agenda lembretes e envia e-mails pelo RabbitMQ |
+| **analytics** | Números do painel por dia (API só de leitura) |
+| **analytics-worker** | Projeta os eventos de agendamento e da lista de espera nos read models |
 | **keycloak** | Identidade: login do dono (PKCE), conta de serviço do Waitlist, papéis e grupos |
+| **lgtm** | OpenTelemetry Collector, Tempo, Prometheus, Loki e Grafana num só container |
 | **web** | Front-end do cliente e do estabelecimento |
 
 ### Lista de espera: a saga
@@ -177,6 +198,12 @@ sequenceDiagram
   arquitetura impede que importem frameworks ou brokers.
 - **Otimização guiada por medição.** Um teste de carga apontou o gargalo e um cache curto do catálogo
   triplicou a vazão.
+- **Trace que atravessa o outbox.** O contexto do trace é gravado junto com o evento e restaurado pelo
+  relay, então um cancelamento aparece inteiro num só trace, mesmo passando por Kafka e RabbitMQ.
+- **CQRS.** O painel lê read models próprios do Analytics, atualizados pelos eventos, sem consultar os
+  serviços de escrita.
+- **Contratos dirigidos pelo consumidor.** Cada consumidor declara o que usa de uma API ou de um evento, e
+  o provedor verifica esses contratos na própria suíte.
 
 Cada decisão está registrada numa ADR:
 
@@ -189,6 +216,9 @@ Cada decisão está registrada numa ADR:
 | [0005](docs/adr/0005-lista-de-espera-como-saga.md) | Lista de espera como saga orquestrada com reservas temporárias |
 | [0006](docs/adr/0006-keycloak-e-api-gateway.md) | Keycloak para identidade e Traefik como API gateway |
 | [0007](docs/adr/0007-cache-do-catalogo.md) | Cache curto do catálogo no Booking |
+| [0008](docs/adr/0008-observabilidade-com-opentelemetry.md) | Observabilidade com OpenTelemetry e a stack LGTM |
+| [0009](docs/adr/0009-analytics-com-cqrs.md) | Serviço Analytics com CQRS |
+| [0010](docs/adr/0010-testes-de-contrato-com-pact.md) | Testes de contrato com Pact |
 
 ## Tecnologias
 
@@ -200,8 +230,9 @@ Cada decisão está registrada numa ADR:
 | Gateway | Traefik 3 (roteamento, rate limit, cabeçalhos de segurança) |
 | E-mail | aiosmtplib, templates HTML, Mailpit para entrega local |
 | Banco de dados | PostgreSQL 17 (exclusion constraint com `btree_gist`, JSONB) |
+| Observabilidade | OpenTelemetry (instrumentação automática e manual), Grafana, Tempo, Prometheus e Loki (`grafana/otel-lgtm`) |
 | Front-end | Vue 3, TypeScript, Vite, Tailwind CSS 4, Vue Router, ícones Lucide |
-| Testes | pytest, Testcontainers (PostgreSQL, Kafka, RabbitMQ), Hypothesis, import-linter, k6 |
+| Testes | pytest, Testcontainers (PostgreSQL, Kafka, RabbitMQ), Pact, Hypothesis, import-linter, k6 |
 | Qualidade | ruff (lint e formatação), mypy (strict), vue-tsc |
 | Infraestrutura | Docker, Docker Compose, nginx, Kafka UI, GitHub Actions |
 | Ferramentas | Workspace do uv (um lock file para todos os serviços Python) |
@@ -215,13 +246,17 @@ VagaCerta/
 │   ├── catalog/                # estabelecimentos, profissionais e serviços
 │   ├── booking/                # disponibilidade, agendamentos, reservas, outbox e relay
 │   ├── waitlist/               # lista de espera, ofertas e worker da saga
+│   ├── analytics/              # read models do painel e worker que projeta os eventos
 │   └── notification/           # consumidor de eventos, lembretes, e-mails e worker do RabbitMQ
 │       ├── migrations/         # (em cada serviço) migrações do Alembic
 │       ├── src/                # (em cada serviço) código do serviço
 │       └── tests/              # (em cada serviço) testes
+├── libs/auth/                  # vagacerta-auth: validação dos tokens do Keycloak, usada pelos serviços
+├── pacts/                      # contratos gerados pelos consumidores e verificados pelos provedores
 ├── web/                        # front-end em Vue 3, servido por nginx no Docker
 ├── gateway/dynamic.yml         # rotas e middlewares do Traefik
 ├── keycloak/                   # realm versionado e tema da tela de login
+├── observability/              # dashboard do Grafana provisionado na subida
 ├── load/booking.js             # teste de carga com k6
 ├── docs/
 │   ├── adr/                    # registros de decisões de arquitetura
@@ -258,11 +293,12 @@ dados de exemplo são criados: quatro estabelecimentos e um dia lotado na Clíni
 | http://localhost:8080 | App (tudo passa pelo gateway) |
 | http://localhost:8080/painel | Painel do estabelecimento |
 | http://localhost:8025 | Mailpit: todos os e-mails enviados |
+| http://localhost:3000 | Grafana: dashboard do VagaCerta, traces, métricas e logs |
 | http://localhost:8090 | Kafka UI: tópicos `booking.events` e `waitlist.events` |
 | http://localhost:15672 | RabbitMQ: filas de e-mail, retry e dead-letter (`guest` / `guest`) |
 | http://localhost:8081 | Dashboard do Traefik |
 | http://localhost:8080/auth/admin | Console do Keycloak (`admin` / `admin`) |
-| http://localhost:8001/docs · :8002/docs · :8003/docs | Swagger do Catalog, Booking e Waitlist |
+| http://localhost:8001/docs · :8002 · :8003 · :8004 | Swagger do Catalog, Booking, Waitlist e Analytics |
 
 **Usuários de demonstração** (senha `vagacerta`):
 
@@ -280,19 +316,22 @@ dados de exemplo são criados: quatro estabelecimentos e um dia lotado na Clíni
 Suba só a infraestrutura com Docker e rode cada processo num terminal:
 
 ```bash
-docker compose up -d catalog-db booking-db waitlist-db notification-db kafka rabbitmq mailpit keycloak
+docker compose up -d catalog-db booking-db waitlist-db notification-db analytics-db kafka rabbitmq mailpit keycloak
 uv sync
 
 (cd services/catalog && uv run alembic upgrade head && uv run python -m catalog.seed)
 (cd services/booking && uv run alembic upgrade head)
 (cd services/waitlist && uv run alembic upgrade head)
 (cd services/notification && uv run alembic upgrade head)
+(cd services/analytics && uv run alembic upgrade head)
 
 uv run uvicorn catalog.main:app --port 8001 --reload
 uv run uvicorn booking.main:app --port 8002 --reload
 uv run uvicorn waitlist.main:app --port 8003 --reload
+uv run uvicorn analytics.main:app --port 8004 --reload
 uv run python -m booking.outbox_relay
 uv run python -m waitlist.worker
+uv run python -m analytics.worker
 uv run python -m notification
 
 npm --prefix web install
@@ -301,13 +340,17 @@ npm --prefix web run dev
 
 O front roda em http://localhost:5173 e encaminha `/api/*` para os serviços.
 
+Para ver a telemetria rodando localmente, suba também o `lgtm` e troque `uv run` por
+`uv run opentelemetry-instrument` com as variáveis `OTEL_*` do bloco `x-otel` do
+[`docker-compose.yml`](docker-compose.yml), apontando para `http://localhost:4318`.
+
 ### Variáveis de ambiente
 
 | Serviço | Variável | Padrão |
 |---|---|---|
 | catalog | `DATABASE_URL` | `postgresql+asyncpg://vagacerta:vagacerta@localhost:5433/catalog` |
-| catalog, booking | `KEYCLOAK_ISSUER` | `http://localhost:8080/auth/realms/vagacerta` |
-| catalog, booking | `KEYCLOAK_JWKS_URL` | `<KEYCLOAK_ISSUER>/protocol/openid-connect/certs` |
+| catalog, booking, analytics | `KEYCLOAK_ISSUER` | `http://localhost:8080/auth/realms/vagacerta` |
+| catalog, booking, analytics | `KEYCLOAK_JWKS_URL` | `<KEYCLOAK_ISSUER>/protocol/openid-connect/certs` |
 | booking | `DATABASE_URL` | `postgresql+asyncpg://vagacerta:vagacerta@localhost:5434/booking` |
 | booking | `CATALOG_URL` | `http://localhost:8001` |
 | booking relay | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9094` |
@@ -320,7 +363,9 @@ O front roda em http://localhost:5173 e encaminha `/api/*` para os serviços.
 | notification | `RABBITMQ_URL` | `amqp://guest:guest@localhost:5672/` |
 | notification | `SMTP_HOST` / `SMTP_PORT` | `localhost` / `1025` |
 | notification | `WEB_URL` | `http://localhost:8080` (usada nos links dos e-mails) |
-| relay, waitlist, notification | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9094` |
+| analytics | `DATABASE_URL` | `postgresql+asyncpg://vagacerta:vagacerta@localhost:5437/analytics` |
+| relay, waitlist, notification, analytics | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9094` |
+| todos | `OTEL_SERVICE_NAME`, `OTEL_EXPORTER_OTLP_ENDPOINT` e demais `OTEL_*` | definidas no `docker-compose.yml` |
 
 ## Roteiro de demonstração
 
@@ -335,7 +380,12 @@ Com a stack no ar (`docker compose up --build`):
 4. **Receba a oferta.** No Mailpit chega "Uma vaga abriu". O botão "Quero esse horário" abre a oferta
    com contagem regressiva; ao confirmar, o agendamento é criado e chega o e-mail de confirmação. No
    painel, enquanto a oferta está aberta, o horário aparece como "Oferta da fila".
-5. **Veja os bastidores.** Os eventos no [Kafka UI](http://localhost:8090) e as filas no
+5. **Veja os números.** No painel, "Próximos 14 dias" já mostra o cancelamento e o horário recuperado
+   pela fila, com o valor que voltou para a agenda.
+6. **Siga o cancelamento.** No [Grafana](http://localhost:3000), o dashboard **VagaCerta** lista os traces
+   recentes. O do `POST /bookings/{booking_id}/cancel` mostra o caminho inteiro: Booking, relay, Kafka,
+   worker da saga, reserva no Booking, Notification, RabbitMQ e o envio do e-mail.
+7. **Veja os bastidores.** Os eventos no [Kafka UI](http://localhost:8090) e as filas no
    [RabbitMQ](http://localhost:15672).
 
 ## API
@@ -373,6 +423,12 @@ A documentação interativa completa fica em `/docs` em cada serviço.
 | `GET` | `/offers/{id}` | link do e-mail | Detalhes da oferta |
 | `POST` | `/offers/{id}/claim` | link do e-mail | Confirma a oferta antes de expirar |
 
+### Analytics — `:8004` · `/api/analytics`
+
+| Método | Endpoint | Acesso | Descrição |
+|---|---|---|---|
+| `GET` | `/businesses/{id}/stats?from=&to=` | `owner` do estabelecimento | Agendamentos, cancelamentos, receita e ofertas da lista de espera por dia |
+
 Exemplo:
 
 ```bash
@@ -406,11 +462,17 @@ curl -s http://localhost:8080/auth/realms/vagacerta/protocol/openid-connect/toke
 
 ## Eventos
 
-| Tópico | Tipo | Publicado quando | `data` |
+| Tópico | Tipo | Publicado quando | Consumido por |
 |---|---|---|---|
-| `booking.events` | `booking.created` | Um agendamento é confirmado | Horário, cliente, estabelecimento, profissional e serviço |
-| `booking.events` | `booking.cancelled` | Um agendamento confirmado é cancelado | Id do agendamento, profissional e horário liberado |
-| `waitlist.events` | `waitlist.offer_created` | Um horário é reservado para alguém da fila | Dados da oferta, prazo e link de confirmação |
+| `booking.events` | `booking.created` | Um agendamento é confirmado | Notification, Analytics |
+| `booking.events` | `booking.cancelled` | Um agendamento confirmado é cancelado | Waitlist worker, Notification, Analytics |
+| `waitlist.events` | `waitlist.offer_created` | Um horário é reservado para alguém da fila | Notification, Analytics |
+| `waitlist.events` | `waitlist.offer_claimed` | A pessoa da fila confirma a oferta | Analytics |
+| `waitlist.events` | `waitlist.offer_expired` | A oferta expira sem confirmação | Analytics |
+
+`booking.created` traz horário, cliente, estabelecimento, profissional, serviço e preço;
+`booking.cancelled`, o horário liberado; os eventos da lista de espera, os dados da oferta e o prazo. O
+formato que cada consumidor usa está nos contratos em [`pacts/`](pacts).
 
 As mensagens usam o id do agendamento (ou da oferta) como chave, então os eventos de um mesmo agendamento
 chegam em ordem.
@@ -422,6 +484,7 @@ chegam em ordem.
   "occurred_at": "2026-10-23T19:40:28.283996+00:00",
   "data": {
     "booking_id": "80be9d06-b39a-4212-963b-882a7a4ef6a0",
+    "business_id": "6384a99a-146a-4b11-8e9b-db99b79e8fd2",
     "starts_at": "2026-10-24T10:00:00-03:00",
     "ends_at": "2026-10-24T10:30:00-03:00",
     "customer_name": "Ana Teste",
@@ -436,12 +499,28 @@ chegam em ordem.
 }
 ```
 
+## Observabilidade
+
+Todos os processos rodam com a instrumentação automática do OpenTelemetry e mandam traces, métricas e
+logs para o container `grafana/otel-lgtm`. O Grafana sobe em http://localhost:3000 com o dashboard
+**VagaCerta** já provisionado.
+
+| Sinal | O que mostra |
+|---|---|
+| Traces (Tempo) | Cada requisição com as queries, as chamadas HTTP e as mensagens. O contexto passa pelo outbox e pelos cabeçalhos do Kafka e do RabbitMQ, então um cancelamento é um único trace de quatro serviços |
+| Métricas (Prometheus) | Requisições por segundo, p95 e erros 5xx por serviço; agendamentos criados e cancelados, ofertas da fila por resultado e e-mails enviados, repetidos ou na dead-letter |
+| Logs (Loki) | Os logs de todos os serviços, cada um ligado ao trace e ao span em que foi escrito |
+
+| Dashboard | Um cancelamento, do clique ao e-mail |
+|---|---|
+| <img src="docs/screenshots/grafana-dashboard.png" alt="Dashboard do VagaCerta no Grafana com métricas de negócio e dos serviços" /> | <img src="docs/screenshots/grafana-trace.png" alt="Trace de um cancelamento atravessando Booking, relay, Waitlist e Notification" /> |
+
 ## Testes
 
 ```bash
-uv run pytest            # 58 testes (os de integração sobem containers com Docker)
+uv run pytest            # 81 testes (os de integração sobem containers com Docker)
 uv run lint-imports      # regras de arquitetura
-uv run mypy services/catalog/src services/booking/src services/notification/src services/waitlist/src
+uv run mypy libs/auth/src services/catalog/src services/booking/src services/notification/src services/waitlist/src services/analytics/src
 uv run ruff check && uv run ruff format --check
 npm --prefix web run build                      # checa os tipos do front-end
 docker compose --profile load run --rm k6       # teste de carga contra a stack no ar
@@ -457,12 +536,33 @@ docker compose --profile load run --rm k6       # teste de carga contra a stack 
 | Mensageria | Num RabbitMQ real: e-mails entregues, repetidos com backoff e enviados à dead-letter após a última tentativa |
 | Idempotência | Evento reentregue não gera segundo e-mail nem segunda oferta; lembrete sai uma vez só |
 | Saga | Oferta ao primeiro da fila, pulo de quem não cabe no horário, confirmação e compensação por expiração |
+| Projeções (CQRS) | Os read models do Analytics somam os eventos certos e ignoram reentregas |
+| Contrato (Pact) | Cada consumidor declara o que usa das APIs e dos eventos; Catalog, Booking e Waitlist verificam esses contratos contra o código real |
+| Rastreamento | O evento gravado no outbox leva o contexto do trace da requisição |
 | Segurança | Tokens RS256 assinados no teste: sem token `401`, papel errado `403`, token forjado `401`, dono de outro estabelecimento `403` |
 | Arquitetura | Os módulos de domínio não dependem de frameworks nem de brokers |
 | Carga (k6) | 50 pessoas disputam o mesmo horário: só uma consegue; a disponibilidade mantém p95 abaixo de 500 ms |
 
-A cada push na `main` e na `develop`, e em todo pull request, o GitHub Actions roda a suíte, o build do
-front e um job de ponta a ponta que sobe a stack completa com Docker Compose e executa o k6.
+### Testes de contrato
+
+Os contratos ficam em [`pacts/`](pacts), um arquivo por par consumidor e provedor:
+
+| Consumidor | Provedor | Contrato |
+|---|---|---|
+| Booking | Catalog | Estabelecimento com expediente, duração e preço dos serviços; `404` para um inexistente |
+| Waitlist | Catalog | Nomes e preços do estabelecimento, dos profissionais e dos serviços |
+| Waitlist | Booking | Reserva de horário livre e ocupado; confirmação e liberação, inclusive de reserva vencida; evento `booking.cancelled` |
+| Notification | Booking, Waitlist | `booking.created`, `booking.cancelled` e `waitlist.offer_created` |
+| Analytics | Booking, Waitlist | Eventos de agendamento e os três eventos de oferta |
+
+Os testes dos consumidores rodam os clientes reais contra o mock do Pact e regravam os contratos. Os dos
+provedores sobem a API num PostgreSQL do Testcontainers, preparam os dados de cada *provider state* e
+geram os eventos com as mesmas funções que gravam o outbox. Remover ou renomear um campo usado por algum
+consumidor quebra a suíte do provedor.
+
+A cada push na `main` e na `develop`, e em todo pull request, o GitHub Actions roda a suíte, confere se os
+contratos versionados estão em dia, faz o build do front e roda um job de ponta a ponta que sobe a stack
+completa com Docker Compose e executa o k6.
 
 ## Desempenho
 
@@ -476,8 +576,9 @@ disponibilidade sem pausa enquanto 50 tentam agendar o mesmo horário ao mesmo t
 | Agendamentos criados na disputa | 1 de 50 | 1 de 50 |
 
 O teste mostrou que cada consulta chamava o Catalog por HTTP. Um cache de 30 segundos no Booking resolveu
-o gargalo ([ADR 0007](docs/adr/0007-cache-do-catalogo.md)). Números medidos no Docker Desktop de uma
-máquina de desenvolvimento.
+o gargalo ([ADR 0007](docs/adr/0007-cache-do-catalogo.md)). Com o OpenTelemetry ligado em todos os
+serviços, o mesmo cenário mediu 168 req/s e p95 de 205 ms: o custo da telemetria ficou dentro da variação
+entre execuções. Números medidos no Docker Desktop de uma máquina de desenvolvimento.
 
 ## Roadmap
 
@@ -486,7 +587,7 @@ máquina de desenvolvimento.
       (retry e dead-letter queue) e lembretes
 - [x] **Fase 3** — Lista de espera como saga; Keycloak com painel do estabelecimento e token de serviço;
       API gateway com Traefik; teste de carga com k6 no CI
-- [ ] **Fase 4** — Observabilidade com OpenTelemetry, Prometheus, Grafana e Loki; testes de contrato com
+- [x] **Fase 4** — Observabilidade com OpenTelemetry, Prometheus, Grafana e Loki; testes de contrato com
       Pact; serviço de Analytics com CQRS
 - [ ] **Fase 5** — Kubernetes com kind e Helm; agendamento em linguagem natural com LLM local (Ollama) e
       servidor MCP

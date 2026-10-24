@@ -1,5 +1,5 @@
 [tool.uv.workspace]
-members = ["services/*"]
+members = ["services/*", "libs/*"]
 
 [tool.ruff]
 line-length = 100
@@ -11,7 +11,7 @@ select = ["E", "F", "I", "UP", "B", "ASYNC", "RUF"]
 "services/*/tests/*" = ["ASYNC110"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["catalog", "booking", "notification", "waitlist"]
+known-first-party = ["catalog", "booking", "notification", "waitlist", "analytics", "vagacerta_auth"]
 
 [tool.mypy]
 strict = true
@@ -42,6 +42,7 @@ dev = [
     "hypothesis>=6.170.8",
     "import-linter>=2.15",
     "mypy>=2.4.0",
+    "pact-python>=4.2.0",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "ruff>=0.17.2",

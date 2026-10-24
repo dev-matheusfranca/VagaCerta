@@ -11,8 +11,8 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 from testcontainers.community.postgres import PostgresContainer
 
-from catalog.auth import AUDIENCE, TokenVerifier
 from catalog.main import create_app
+from vagacerta_auth import AUDIENCE, TokenVerifier
 
 BUSINESS = {
     "name": "Barbearia Teste",

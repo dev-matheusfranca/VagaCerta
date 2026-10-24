@@ -5,16 +5,20 @@ from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from opentelemetry import metrics
 from sqlalchemy import ColumnElement, and_, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from booking import events, models, schemas
-from booking.auth import Claims, require_role
 from booking.catalog_client import Business, CatalogClient, Professional, Service
 from booking.domain import available_slots
+from vagacerta_auth import Claims, require_role
 
 router = APIRouter()
+BOOKINGS = metrics.get_meter("booking").create_counter(
+    "vagacerta.bookings", unit="{booking}", description="Agendamentos criados e cancelados"
+)
 
 
 async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
@@ -138,6 +142,7 @@ async def create_booking(
     booking, business, professional, service = await reserve(data, session, catalog)
     session.add_all([booking, events.booking_created(booking, business, professional, service)])
     await commit_or_conflict(session)
+    BOOKINGS.add(1, {"event": "created", "source": "site"})
     return booking
 
 
@@ -177,6 +182,7 @@ async def confirm_booking(booking_id: UUID, session: Session, catalog: Catalog) 
     booking.status, booking.hold_expires_at = "confirmed", None
     session.add(events.booking_created(booking, business, professional, service))
     await session.commit()
+    BOOKINGS.add(1, {"event": "created", "source": "waitlist"})
     return booking
 
 
@@ -204,6 +210,7 @@ async def cancel_booking(booking_id: UUID, session: Session) -> models.Booking:
     booking.status = "cancelled"
     session.add(events.booking_cancelled(booking))
     await session.commit()
+    BOOKINGS.add(1, {"event": "cancelled"})
     return booking
 
 
