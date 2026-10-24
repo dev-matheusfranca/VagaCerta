@@ -1,3 +1,5 @@
+name: vagacerta
+
 x-postgres: &postgres
   image: postgres:17-alpine
   healthcheck:
@@ -159,7 +161,7 @@ services:
       kafka: { condition: service_healthy }
 
   keycloak:
-    image: quay.io/keycloak/keycloak:26.4
+    build: keycloak
     command: start-dev --import-realm
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
@@ -171,9 +173,6 @@ services:
       KC_PROXY_HEADERS: xforwarded
       KC_HEALTH_ENABLED: "true"
       JAVA_OPTS_KC_HEAP: -Xms128m -Xmx512m
-    volumes:
-      - ./keycloak/vagacerta-realm.json:/opt/keycloak/data/import/vagacerta-realm.json:ro
-      - ./keycloak/themes/vagacerta:/opt/keycloak/themes/vagacerta:ro
     healthcheck:
       test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/9000 && printf 'GET /auth/health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q UP <&3"]
       interval: 5s
@@ -253,11 +252,8 @@ services:
       kafka: { condition: service_healthy }
 
   lgtm:
-    image: grafana/otel-lgtm:0.20.0
+    build: observability
     ports: ["3000:3000"]
-    volumes:
-      - ./observability/dashboards.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/vagacerta.yaml:ro
-      - ./observability/vagacerta-dashboard.json:/otel-lgtm/vagacerta-dashboard.json:ro
 
   mcp-server:
     build:
@@ -322,14 +318,13 @@ services:
     build: web
 
   gateway:
-    image: traefik:v3.6
+    build: gateway
     command:
       - --entrypoints.web.address=:80
       - --providers.file.filename=/etc/traefik/dynamic.yml
       - --api.insecure=true
       - --ping=true
       - --accesslog=true
-    volumes: ["./gateway/dynamic.yml:/etc/traefik/dynamic.yml:ro"]
     ports: ["8080:80", "8081:8080"]
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
