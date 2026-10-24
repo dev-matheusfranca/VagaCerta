@@ -50,7 +50,7 @@ async def consume(
         try:
             event = event_adapter.validate_json(record.value)
         except ValidationError:
-            logger.warning("Skipping unknown event at offset %s", record.offset)
+            logger.debug("Skipping event this service does not handle at offset %s", record.offset)
         else:
             carrier = {key: value.decode() for key, value in record.headers}
             with tracer.start_as_current_span(
