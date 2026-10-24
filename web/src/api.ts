@@ -88,6 +88,13 @@ export interface Offer {
   }
 }
 
+export interface ChatMessage {
+  role: 'user' | 'assistant' | 'tool'
+  content: string
+  tool_calls?: { function: { name: string; arguments: Record<string, unknown> } }[]
+  tool_name?: string
+}
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -136,4 +143,9 @@ export const api = {
     }),
   claimOffer: (id: string) =>
     request<Offer>(`/api/waitlist/offers/${id}/claim`, { method: 'POST' }),
+  chat: (messages: ChatMessage[]) =>
+    request<{ messages: ChatMessage[] }>('/api/assistant/chat', {
+      method: 'POST',
+      body: JSON.stringify({ messages }),
+    }),
 }

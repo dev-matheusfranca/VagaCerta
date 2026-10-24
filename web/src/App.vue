@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CalendarCheck, LayoutDashboard } from 'lucide-vue-next'
+import { BotMessageSquare, CalendarCheck, LayoutDashboard } from 'lucide-vue-next'
 </script>
 
 <template>
@@ -22,6 +22,13 @@ import { CalendarCheck, LayoutDashboard } from 'lucide-vue-next'
             class="hidden rounded-full px-4 py-2 text-sm font-semibold text-ink/70 transition hover:bg-brand-50 hover:text-brand-700 sm:block"
           >
             Estabelecimentos
+          </RouterLink>
+          <RouterLink
+            :to="{ name: 'assistant' }"
+            class="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-ink/70 transition hover:bg-brand-50 hover:text-brand-700"
+          >
+            <BotMessageSquare class="size-4" />
+            <span class="hidden sm:inline">Assistente</span>
           </RouterLink>
           <RouterLink
             :to="{ name: 'painel' }"

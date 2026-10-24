@@ -18,6 +18,10 @@ export default defineConfig({
         target: 'http://localhost:8004',
         rewrite: (path) => path.replace(/^\/api\/analytics/, ''),
       },
+      '/api/assistant': {
+        target: 'http://localhost:8006',
+        rewrite: (path) => path.replace(/^\/api\/assistant/, ''),
+      },
       '/api/booking': {
         target: 'http://localhost:8002',
         rewrite: (path) => path.replace(/^\/api\/booking/, ''),

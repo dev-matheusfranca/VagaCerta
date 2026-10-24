@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import App from './App.vue'
 import { keycloak } from './auth'
 import './style.css'
+import AssistantView from './views/AssistantView.vue'
 import BookingView from './views/BookingView.vue'
 import BusinessView from './views/BusinessView.vue'
 import HomeView from './views/HomeView.vue'
@@ -20,6 +21,7 @@ const router = createRouter({
     { path: '/agendamentos/:id', name: 'booking', component: BookingView, props: true },
     { path: '/ofertas/:id', name: 'offer', component: OfferView, props: true },
     { path: '/painel', name: 'painel', component: PainelView },
+    { path: '/assistente', name: 'assistant', component: AssistantView },
   ],
   scrollBehavior: (to) => (to.hash ? { el: to.hash, behavior: 'smooth' } : { top: 0 }),
 })
