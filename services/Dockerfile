@@ -7,6 +7,7 @@ ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy PATH="/app/.venv/bin:$PATH" SERVICE=
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
 COPY services ./services
+COPY libs ./libs
 RUN uv sync --frozen --no-dev --package $SERVICE
 
 WORKDIR /app/services/$SERVICE

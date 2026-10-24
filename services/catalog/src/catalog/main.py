@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from catalog.api import router
-from catalog.auth import TokenVerifier, keycloak_verifier
+from vagacerta_auth import TokenVerifier, keycloak_verifier
 
 DATABASE_URL = os.environ.get(
     "DATABASE_URL", "postgresql+asyncpg://vagacerta:vagacerta@localhost:5433/catalog"

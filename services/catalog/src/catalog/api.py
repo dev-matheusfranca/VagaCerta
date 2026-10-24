@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from catalog import models, schemas
-from catalog.auth import require_role
+from vagacerta_auth import require_role
 
 router = APIRouter()
 
