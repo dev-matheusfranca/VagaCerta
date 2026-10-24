@@ -253,7 +253,7 @@ Cada decisão está registrada numa ADR:
 | E-mail | aiosmtplib, templates HTML, Mailpit para entrega local |
 | Banco de dados | PostgreSQL 17 (exclusion constraint com `btree_gist`, JSONB) |
 | Observabilidade | OpenTelemetry (instrumentação automática e manual), Grafana, Tempo, Prometheus e Loki (`grafana/otel-lgtm`) |
-| IA | Ollama (`qwen3:4b` por padrão), Model Context Protocol (SDK oficial em Python), atributos GenAI do OpenTelemetry |
+| IA | Ollama (`qwen3:4b-instruct` por padrão), Model Context Protocol (SDK oficial em Python), atributos GenAI do OpenTelemetry |
 | Front-end | Vue 3, TypeScript, Vite, Tailwind CSS 4, Vue Router, ícones Lucide |
 | Testes | pytest, Testcontainers (PostgreSQL, Kafka, RabbitMQ), Pact, Hypothesis, import-linter, k6 |
 | Qualidade | ruff (lint e formatação), mypy (strict), vue-tsc |
@@ -355,7 +355,7 @@ Com o Ollama instalado na máquina, o modelo roda direto na sua GPU. Nesse caso,
 apontando para ele:
 
 ```bash
-ollama pull qwen3:4b
+ollama pull qwen3:4b-instruct
 OLLAMA_URL=http://host.docker.internal:11434 docker compose up --build assistant
 ```
 
@@ -434,7 +434,7 @@ Para ver a telemetria rodando localmente, suba também o `lgtm` e troque `uv run
 | analytics | `DATABASE_URL` | `postgresql+asyncpg://vagacerta:vagacerta@localhost:5437/analytics` |
 | mcp-server | `CATALOG_URL` / `BOOKING_URL` / `WAITLIST_URL` | `http://localhost:8001` / `:8002` / `:8003` |
 | mcp-server | `WEB_URL` | `http://localhost:8080` (usada nos links dos agendamentos) |
-| assistant | `OLLAMA_URL` / `OLLAMA_MODEL` | `http://localhost:11434` / `qwen3:4b` |
+| assistant | `OLLAMA_URL` / `OLLAMA_MODEL` | `http://localhost:11434` / `qwen3:4b-instruct` |
 | assistant | `MCP_URL` / `TIMEZONE` | `http://localhost:8005/mcp` / `America/Sao_Paulo` |
 | relay, waitlist, notification, analytics | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9094` |
 | todos | `OTEL_SERVICE_NAME`, `OTEL_EXPORTER_OTLP_ENDPOINT` e demais `OTEL_*` | definidas no `docker-compose.yml` |
@@ -633,8 +633,18 @@ sequenceDiagram
 
 O assistente não conhece regras de negócio: ele repassa ao modelo as ferramentas do servidor MCP e
 executa as que o modelo pedir, até o modelo responder sem chamar nenhuma (no máximo 8 passos). O modelo
-recebe a data de hoje e a instrução de confirmar os dados antes de agendar. A conversa fica no navegador,
-e o serviço não guarda estado.
+recebe as datas dos próximos dias já calculadas, porque modelos pequenos erram a conta de "terça que
+vem", e a instrução de confirmar os dados antes de agendar. A conversa fica no navegador, e o serviço não
+guarda estado.
+
+<p align="center">
+  <img src="docs/screenshots/assistente.png" alt="Conversa real com o assistente: ele consulta estabelecimentos, serviços e horários, confirma os dados e agenda" width="560" />
+</p>
+
+Conversa real, com o `qwen3:4b-instruct` rodando localmente. Numa GTX 1650 (4 GB), com contexto de 6 mil
+tokens e as variáveis de ambiente acima, cerca de 70% do modelo fica na GPU: cada chamada ao modelo leva
+de 5 a 20 segundos, e uma resposta que consulta várias ferramentas leva perto de 1 minuto. Em testes
+repetidos com três pedidos diferentes, o modelo começou pela ferramenta certa em 27 de 27 vezes.
 
 O servidor MCP também atende outros clientes. Para explorar as ferramentas com o MCP Inspector:
 

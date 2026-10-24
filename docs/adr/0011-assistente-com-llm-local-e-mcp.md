@@ -20,9 +20,13 @@ gratuitas, e o agendamento não deve ficar preso a um único cliente de IA.
 - **Assistente separado** (`assistant`), que é um cliente MCP. A cada mensagem ele lista as ferramentas,
   conversa com o modelo e executa as chamadas de ferramenta até o modelo responder sem pedir nenhuma, com
   limite de passos. O navegador guarda a conversa e a envia a cada turno, e o serviço não guarda estado.
-- **Modelo local com Ollama**, padrão `qwen3:4b`, configurável por `OLLAMA_MODEL`: gratuito, roda offline e
-  cabe numa GPU de entrada. No Docker Compose, o assistente e o Ollama sobem no perfil `ai`; com o Ollama
+- **Modelo local com Ollama**, padrão `qwen3:4b-instruct`, configurável por `OLLAMA_MODEL`: gratuito, roda
+  offline e roda numa GPU de entrada. A variante instruct responde direto; a tag `qwen3:4b` aponta para a
+  que sempre raciocina antes e gastava centenas de tokens por resposta. O contexto fica em 6 mil tokens e
+  a temperatura em 0,2. No Docker Compose, o assistente e o Ollama sobem no perfil `ai`; com o Ollama
   instalado na máquina, basta apontar `OLLAMA_URL` para ele.
+- **O modelo não faz contas de calendário.** As datas dos próximos dias vão prontas nas instruções, e
+  `find_slots` devolve o dia da semana da data consultada.
 - **Observabilidade de IA.** Cada chamada ao modelo e cada execução de ferramenta vira um span com os
   atributos GenAI do OpenTelemetry (modelo e tokens de entrada e saída), no mesmo trace das chamadas às
   APIs.
