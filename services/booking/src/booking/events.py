@@ -34,6 +34,7 @@ def booking_created(
         booking,
         "booking.created",
         {
+            "business_id": str(booking.business_id),
             "starts_at": booking.starts_at.isoformat(),
             "ends_at": booking.ends_at.isoformat(),
             "customer_name": booking.customer_name,
