@@ -1,11 +1,12 @@
 import json
+from datetime import date
 
 import httpx
 from httpx import ASGITransport, AsyncClient
 from mcp import Client
 from mcp.server.mcpserver import MCPServer
 
-from assistant.agent import MAX_STEPS, reply
+from assistant.agent import MAX_STEPS, reply, system_prompt
 from assistant.main import create_app
 
 tools = MCPServer("fake")
@@ -39,7 +40,7 @@ async def test_tool_results_go_back_to_the_model():
 
     async with Client(tools) as mcp:
         messages = await reply(
-            [{"role": "user", "content": "Tem horário dia 8?"}], model, "qwen3:4b", mcp, "UTC"
+            [{"role": "user", "content": "Tem horário dia 8?"}], model, "qwen3", mcp, "UTC"
         )
 
     assert [m["role"] for m in messages] == ["user", "assistant", "tool", "assistant"]
@@ -53,7 +54,7 @@ async def test_a_model_stuck_on_tools_gets_a_way_out():
     model, received = llm(call("find_slots", day="2030-01-08"))
 
     async with Client(tools) as mcp:
-        messages = await reply([{"role": "user", "content": "Oi"}], model, "qwen3:4b", mcp, "UTC")
+        messages = await reply([{"role": "user", "content": "Oi"}], model, "qwen3", mcp, "UTC")
 
     assert len(received) == MAX_STEPS
     assert messages[-1]["role"] == "assistant"
@@ -64,7 +65,7 @@ async def test_an_unreachable_model_is_reported():
         raise httpx.ConnectError("connection refused")
 
     model = httpx.AsyncClient(base_url="http://ollama", transport=httpx.MockTransport(down))
-    app = create_app(model, "qwen3:4b", lambda: Client(tools))
+    app = create_app(model, "qwen3", lambda: Client(tools))
 
     async with AsyncClient(transport=ASGITransport(app), base_url="http://test") as client:
         response = await client.post(
@@ -72,3 +73,11 @@ async def test_an_unreachable_model_is_reported():
         )
 
     assert response.status_code == 503
+
+
+def test_the_model_gets_the_dates_of_the_coming_week():
+    prompt = system_prompt(date(2026, 10, 24))
+
+    assert "- sábado: 2026-10-24\n- domingo: 2026-10-25\n- segunda-feira: 2026-10-26\n" in prompt
+    assert "- terça-feira: 2026-10-27" in prompt
+    assert "- sábado: 2026-10-31" in prompt

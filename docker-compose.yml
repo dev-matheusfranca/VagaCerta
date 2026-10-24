@@ -289,7 +289,7 @@ services:
       <<: *otel
       OTEL_SERVICE_NAME: assistant
       OLLAMA_URL: ${OLLAMA_URL:-http://ollama:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b-instruct}
       MCP_URL: http://mcp-server:8000/mcp
     ports: ["8006:8000"]
     healthcheck: *api-healthcheck
@@ -308,7 +308,7 @@ services:
   ollama-model:
     image: ollama/ollama:0.40.10
     profiles: [ai]
-    command: pull ${OLLAMA_MODEL:-qwen3:4b}
+    command: pull ${OLLAMA_MODEL:-qwen3:4b-instruct}
     environment:
       OLLAMA_HOST: ollama:11434
     depends_on:
