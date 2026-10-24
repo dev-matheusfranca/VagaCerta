@@ -377,6 +377,10 @@ kubectl get pods
 Rodar o script de novo atualiza o cluster com as imagens novas. Para remover tudo:
 `kind delete cluster --name vagacerta`.
 
+No cluster, o assistente usa o Ollama da máquina em `http://host.docker.internal:11434`, endereço que
+funciona no Docker Desktop. No Docker do Linux, troque o endereço com
+`--set workloads.assistant.env.OLLAMA_URL=http://<ip-do-host>:11434`.
+
 ### Localmente, sem containers para os serviços
 
 Suba só a infraestrutura com Docker e rode cada processo num terminal:
@@ -657,7 +661,7 @@ Conecte em `http://localhost:8080/mcp` com o transporte Streamable HTTP.
 ## Testes
 
 ```bash
-uv run pytest            # 90 testes (os de integração sobem containers com Docker)
+uv run pytest            # 91 testes (os de integração sobem containers com Docker)
 uv run lint-imports      # regras de arquitetura
 uv run mypy libs/auth/src services/*/src
 uv run ruff check && uv run ruff format --check
