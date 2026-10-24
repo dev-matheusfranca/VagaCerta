@@ -10,6 +10,7 @@ resolution-markers = [
 [manifest]
 members = [
     "analytics",
+    "assistant",
     "booking",
     "catalog",
     "mcp-server",
@@ -181,6 +182,37 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/6b/90/f5fce14e95fccf53b58e8e2c47cd84d40d105d64073ae1ac75166db150e0/asgiref-3.13.0.tar.gz", hash = "sha256:034cc8cbf72d00553b4be256703ac545120b4e50af13b49dec99da899aeeecb4", size = 52941, upload-time = "2026-10-23T08:13:14.715Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/2e/b0/ec211e1f7966247cb6469158d856bac9aa4c2fe13621bd6a352e4f850453/asgiref-3.13.0-py3-none-any.whl", hash = "sha256:f9596a2434512686473d50f96ff6207fbba49ae1a785dfac614df4aeb085674d", size = 27593, upload-time = "2026-10-23T08:13:13.394Z" },
+]
+
+[[package]]
+name = "assistant"
+version = "0.1.0"
+source = { editable = "services/assistant" }
+dependencies = [
+    { name = "fastapi" },
+    { name = "httpx" },
+    { name = "mcp" },
+    { name = "opentelemetry-distro" },
+    { name = "opentelemetry-exporter-otlp-proto-http" },
+    { name = "opentelemetry-instrumentation-fastapi" },
+    { name = "opentelemetry-instrumentation-httpx" },
+    { name = "opentelemetry-instrumentation-logging" },
+    { name = "tzdata" },
+    { name = "uvicorn" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "fastapi", specifier = ">=0.161.1" },
+    { name = "httpx", specifier = ">=0.28.1" },
+    { name = "mcp", specifier = ">=2.3.0" },
+    { name = "opentelemetry-distro", specifier = ">=0.66b1" },
+    { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.45.1" },
+    { name = "opentelemetry-instrumentation-fastapi", specifier = ">=0.66b1" },
+    { name = "opentelemetry-instrumentation-httpx", specifier = ">=0.66b1" },
+    { name = "opentelemetry-instrumentation-logging", specifier = ">=0.66b1" },
+    { name = "tzdata", specifier = ">=2026.5" },
+    { name = "uvicorn", specifier = ">=0.54.0" },
 ]
 
 [[package]]
