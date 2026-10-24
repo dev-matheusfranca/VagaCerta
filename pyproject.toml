@@ -42,6 +42,7 @@ dev = [
     "hypothesis>=6.170.8",
     "import-linter>=2.15",
     "mypy>=2.4.0",
+    "pact-python>=4.2.0",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "ruff>=0.17.2",
