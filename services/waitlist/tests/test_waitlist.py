@@ -1,14 +1,10 @@
 from datetime import UTC, datetime, time, timedelta
-from pathlib import Path
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 import pytest
-from alembic import command
-from alembic.config import Config
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select, text
-from testcontainers.community.postgres import PostgresContainer
 
 from waitlist import saga
 from waitlist.booking_client import Hold
@@ -67,13 +63,8 @@ class FakeBooking:
 
 
 @pytest.fixture(scope="module")
-def app():
-    with PostgresContainer("postgres:17-alpine", driver="asyncpg") as postgres:
-        url = postgres.get_connection_url()
-        config = Config(str(Path(__file__).parents[1] / "alembic.ini"))
-        config.set_main_option("sqlalchemy.url", url)
-        command.upgrade(config, "head")
-        yield create_app(url, FakeCatalog(), FakeBooking())
+def app(database_url):
+    return create_app(database_url, FakeCatalog(), FakeBooking())
 
 
 @pytest.fixture

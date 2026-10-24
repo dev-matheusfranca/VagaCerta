@@ -24,6 +24,10 @@ http:
       rule: PathPrefix(`/api/analytics`)
       service: analytics
       middlewares: [strip-api, security-headers]
+    mcp:
+      rule: PathPrefix(`/mcp`)
+      service: mcp-server
+      middlewares: [write-rate-limit, security-headers]
     keycloak:
       rule: PathPrefix(`/auth`)
       service: keycloak
@@ -62,6 +66,9 @@ http:
     analytics:
       loadBalancer:
         servers: [{ url: http://analytics:8000 }]
+    mcp-server:
+      loadBalancer:
+        servers: [{ url: http://mcp-server:8000 }]
     keycloak:
       loadBalancer:
         servers: [{ url: http://keycloak:8080 }]

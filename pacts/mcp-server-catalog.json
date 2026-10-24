@@ -1,0 +1,309 @@
+{
+  "consumer": {
+    "name": "mcp-server"
+  },
+  "interactions": [
+    {
+      "description": "a request for a business with its professionals and services",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "a business with a professional and a service exists",
+          "params": {
+            "booking_id": "5d6e7f80-9a1b-4c2d-8e3f-4a5b6c7d8e9f",
+            "business_id": "6384a99a-146a-4b11-8e9b-db99b79e8fd2",
+            "professional_id": "8f4c2a1e-5b6d-4e7f-9a0b-1c2d3e4f5a6b",
+            "service_id": "2b3c4d5e-6f70-4812-93a4-b5c6d7e8f901",
+            "starts_at": "2030-01-08T13:00:00+00:00"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/businesses/6384a99a-146a-4b11-8e9b-db99b79e8fd2"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "address": "Av. Brasil, 1200",
+            "id": "6384a99a-146a-4b11-8e9b-db99b79e8fd2",
+            "name": "Barbearia Navalha de Ouro",
+            "professionals": [
+              {
+                "id": "8f4c2a1e-5b6d-4e7f-9a0b-1c2d3e4f5a6b",
+                "name": "Rafael Costa",
+                "specialty": "Barbeiro"
+              }
+            ],
+            "services": [
+              {
+                "duration_minutes": 30,
+                "id": "2b3c4d5e-6f70-4812-93a4-b5c6d7e8f901",
+                "name": "Corte masculino",
+                "price_cents": 4500
+              }
+            ]
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.address": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^([0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}|[0-9A-F]{8}(-[0-9A-F]{4}){3}-[0-9A-F]{12})$"
+                }
+              ]
+            },
+            "$.name": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.professionals": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.professionals[*].id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^([0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}|[0-9A-F]{8}(-[0-9A-F]{4}){3}-[0-9A-F]{12})$"
+                }
+              ]
+            },
+            "$.professionals[*].name": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.professionals[*].specialty": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.services": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.services[*].duration_minutes": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.services[*].id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^([0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}|[0-9A-F]{8}(-[0-9A-F]{4}){3}-[0-9A-F]{12})$"
+                }
+              ]
+            },
+            "$.services[*].name": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.services[*].price_cents": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "a request for the list of businesses",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "a business with a professional and a service exists",
+          "params": {
+            "booking_id": "5d6e7f80-9a1b-4c2d-8e3f-4a5b6c7d8e9f",
+            "business_id": "6384a99a-146a-4b11-8e9b-db99b79e8fd2",
+            "professional_id": "8f4c2a1e-5b6d-4e7f-9a0b-1c2d3e4f5a6b",
+            "service_id": "2b3c4d5e-6f70-4812-93a4-b5c6d7e8f901",
+            "starts_at": "2030-01-08T13:00:00+00:00"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/businesses"
+      },
+      "response": {
+        "body": {
+          "content": [
+            {
+              "address": "Av. Brasil, 1200",
+              "category": "barbearia",
+              "id": "6384a99a-146a-4b11-8e9b-db99b79e8fd2",
+              "name": "Barbearia Navalha de Ouro"
+            }
+          ],
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$[*].address": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$[*].category": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$[*].id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^([0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}|[0-9A-F]{8}(-[0-9A-F]{4}){3}-[0-9A-F]{12})$"
+                }
+              ]
+            },
+            "$[*].name": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "a request for the timezone of a business",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "a business with a professional and a service exists",
+          "params": {
+            "booking_id": "5d6e7f80-9a1b-4c2d-8e3f-4a5b6c7d8e9f",
+            "business_id": "6384a99a-146a-4b11-8e9b-db99b79e8fd2",
+            "professional_id": "8f4c2a1e-5b6d-4e7f-9a0b-1c2d3e4f5a6b",
+            "service_id": "2b3c4d5e-6f70-4812-93a4-b5c6d7e8f901",
+            "starts_at": "2030-01-08T13:00:00+00:00"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/businesses/6384a99a-146a-4b11-8e9b-db99b79e8fd2"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "timezone": "America/Sao_Paulo"
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.timezone": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "type": "Synchronous/HTTP"
+    }
+  ],
+  "metadata": {
+    "pactRust": {
+      "ffi": "0.5.12",
+      "models": "1.3.16"
+    },
+    "pactSpecification": {
+      "version": "4.0"
+    }
+  },
+  "provider": {
+    "name": "catalog"
+  }
+}
