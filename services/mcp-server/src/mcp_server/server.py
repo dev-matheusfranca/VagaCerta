@@ -22,6 +22,17 @@ def checked(response: httpx.Response) -> Any:
     return response.json()
 
 
+WEEKDAYS = [
+    "segunda-feira",
+    "terça-feira",
+    "quarta-feira",
+    "quinta-feira",
+    "sexta-feira",
+    "sábado",
+    "domingo",
+]
+
+
 def brl(cents: int) -> str:
     return f"R$ {cents / 100:.2f}".replace(".", ",")
 
@@ -85,6 +96,7 @@ def create_server(
         ]
         return {
             "day": str(day),
+            "weekday": WEEKDAYS[day.weekday()],
             "slots": [{"time": s.strftime("%H:%M"), "starts_at": s.isoformat()} for s in slots],
         }
 

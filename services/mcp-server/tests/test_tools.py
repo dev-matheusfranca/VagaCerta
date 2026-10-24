@@ -40,6 +40,7 @@ async def test_slots_are_in_the_business_timezone():
             },
         )
 
+    assert result.structured_content["weekday"] == "terça-feira"
     assert [s["time"] for s in result.structured_content["slots"]] == ["10:00", "14:30"]
     assert result.structured_content["slots"][0]["starts_at"] == "2030-01-08T10:00:00-03:00"
 
