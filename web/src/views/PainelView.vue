@@ -12,6 +12,7 @@ import {
 import { computed, onMounted, ref, watch } from 'vue'
 import { api, ApiError, type Booking, type BusinessDetail } from '../api'
 import { keycloak } from '../auth'
+import UpcomingStats from '../components/UpcomingStats.vue'
 import { category, currency, initials, longDate, time } from '../format'
 
 const business = ref<BusinessDetail>()
@@ -251,6 +252,8 @@ async function cancel(booking: Booking) {
           </ul>
         </section>
       </div>
+
+      <UpcomingStats :business-id="business.id" :timezone="business.timezone" />
     </div>
   </div>
 
