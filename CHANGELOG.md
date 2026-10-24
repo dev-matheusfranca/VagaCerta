@@ -5,6 +5,39 @@ Todas as mudanças relevantes do projeto ficam registradas neste arquivo.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto usa
 [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.4.0] - 2026-10-24
+
+### Adicionado
+
+- Observabilidade com OpenTelemetry em todos os processos: traces, métricas e logs enviados ao
+  `grafana/otel-lgtm` (Tempo, Prometheus, Loki e Grafana), com um dashboard versionado.
+- O contexto do trace é gravado no outbox e segue pelos cabeçalhos do Kafka e do RabbitMQ: um
+  cancelamento vira um único trace, do clique ao e-mail.
+- Métricas de negócio: agendamentos criados e cancelados, ofertas da lista de espera por resultado e
+  e-mails enviados, repetidos ou na dead-letter.
+- Serviço Analytics com CQRS: um worker projeta os eventos em read models diários, e a API entrega os
+  números ao dono do estabelecimento.
+- "Próximos 14 dias" no painel: agendamentos, cancelamentos, receita prevista e receita recuperada pela
+  lista de espera.
+- Eventos `waitlist.offer_claimed` e `waitlist.offer_expired`; `booking.created` passa a trazer o
+  `business_id`.
+- Testes de contrato com Pact nas APIs REST e nos eventos do Kafka, com os contratos versionados em
+  `pacts/` e verificados pelos provedores.
+- Biblioteca `vagacerta-auth` no workspace, com a validação dos tokens do Keycloak usada por Catalog,
+  Booking e Analytics.
+- ADRs 0008 (observabilidade), 0009 (Analytics com CQRS) e 0010 (testes de contrato).
+
+### Alterado
+
+- Os dados de demonstração do Booking são gravados pelo outbox, para o painel já abrir com números.
+- O CI falha se os contratos versionados estiverem desatualizados.
+- Limites de memória da JVM para Kafka, Keycloak e Kafka UI.
+
+### Corrigido
+
+- Depois de um novo deploy do front, o navegador podia usar um `index.html` em cache que apontava para
+  arquivos que não existem mais e mostrar a página em branco.
+
 ## [0.3.0] - 2026-10-23
 
 ### Adicionado
@@ -66,6 +99,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 - Testes unitários, baseados em propriedades, de integração, de concorrência e de arquitetura.
 - Docker Compose, pipeline no GitHub Actions, README e ADRs 0001 e 0002.
 
+[0.4.0]: https://github.com/dev-matheusfranca/VagaCerta/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/dev-matheusfranca/VagaCerta/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/dev-matheusfranca/VagaCerta/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/dev-matheusfranca/VagaCerta/compare/v0.1.0...v0.2.0
