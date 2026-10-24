@@ -1,3 +1,5 @@
+name: vagacerta
+
 x-postgres: &postgres
   image: postgres:17-alpine
   healthcheck:
@@ -159,7 +161,7 @@ services:
       kafka: { condition: service_healthy }
 
   keycloak:
-    image: quay.io/keycloak/keycloak:26.4
+    build: keycloak
     command: start-dev --import-realm
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
@@ -171,9 +173,6 @@ services:
       KC_PROXY_HEADERS: xforwarded
       KC_HEALTH_ENABLED: "true"
       JAVA_OPTS_KC_HEAP: -Xms128m -Xmx512m
-    volumes:
-      - ./keycloak/vagacerta-realm.json:/opt/keycloak/data/import/vagacerta-realm.json:ro
-      - ./keycloak/themes/vagacerta:/opt/keycloak/themes/vagacerta:ro
     healthcheck:
       test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/9000 && printf 'GET /auth/health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q UP <&3"]
       interval: 5s
@@ -253,30 +252,85 @@ services:
       kafka: { condition: service_healthy }
 
   lgtm:
-    image: grafana/otel-lgtm:0.20.0
+    build: observability
     ports: ["3000:3000"]
-    volumes:
-      - ./observability/dashboards.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/vagacerta.yaml:ro
-      - ./observability/vagacerta-dashboard.json:/otel-lgtm/vagacerta-dashboard.json:ro
+
+  mcp-server:
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+      args: { SERVICE: mcp-server }
+    command: opentelemetry-instrument uvicorn mcp_server.main:app --host 0.0.0.0 --port 8000
+    environment:
+      <<: *otel
+      OTEL_SERVICE_NAME: mcp-server
+      CATALOG_URL: http://catalog:8000
+      BOOKING_URL: http://booking:8000
+      WAITLIST_URL: http://waitlist:8000
+    ports: ["8005:8000"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 3s
+      retries: 20
+    depends_on:
+      catalog: { condition: service_healthy }
+      booking: { condition: service_healthy }
+      waitlist: { condition: service_healthy }
+
+  # Assistente com LLM local: sobe com `docker compose --profile ai up`.
+  assistant:
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+      args: { SERVICE: assistant }
+    profiles: [ai]
+    command: opentelemetry-instrument uvicorn assistant.main:app --host 0.0.0.0 --port 8000
+    environment:
+      <<: *otel
+      OTEL_SERVICE_NAME: assistant
+      OLLAMA_URL: ${OLLAMA_URL:-http://ollama:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b-instruct}
+      MCP_URL: http://mcp-server:8000/mcp
+    ports: ["8006:8000"]
+    healthcheck: *api-healthcheck
+    depends_on:
+      mcp-server: { condition: service_healthy }
+
+  ollama:
+    image: ollama/ollama:0.40.10
+    profiles: [ai]
+    volumes: ["ollama:/root/.ollama"]
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 3s
+      retries: 20
+
+  ollama-model:
+    image: ollama/ollama:0.40.10
+    profiles: [ai]
+    command: pull ${OLLAMA_MODEL:-qwen3:4b-instruct}
+    environment:
+      OLLAMA_HOST: ollama:11434
+    depends_on:
+      ollama: { condition: service_healthy }
 
   web:
     build: web
 
   gateway:
-    image: traefik:v3.6
+    build: gateway
     command:
       - --entrypoints.web.address=:80
       - --providers.file.filename=/etc/traefik/dynamic.yml
       - --api.insecure=true
       - --ping=true
       - --accesslog=true
-    volumes: ["./gateway/dynamic.yml:/etc/traefik/dynamic.yml:ro"]
     ports: ["8080:80", "8081:8080"]
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
       interval: 3s
       retries: 20
-    depends_on: [web, catalog, booking, waitlist, analytics, keycloak]
+    depends_on: [web, catalog, booking, waitlist, analytics, mcp-server, keycloak]
 
   k6:
     image: grafana/k6:1.3.0
@@ -287,3 +341,6 @@ services:
     volumes: ["./load:/scripts:ro"]
     depends_on:
       gateway: { condition: service_healthy }
+
+volumes:
+  ollama:

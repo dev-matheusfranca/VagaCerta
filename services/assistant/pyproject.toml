@@ -1,0 +1,21 @@
+[project]
+name = "assistant"
+version = "0.1.0"
+description = "Natural-language booking assistant: a local LLM (Ollama) using the VagaCerta MCP tools."
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.161.1",
+    "httpx>=0.28.1",
+    "mcp>=2.3.0",
+    "opentelemetry-distro>=0.66b1",
+    "opentelemetry-exporter-otlp-proto-http>=1.45.1",
+    "opentelemetry-instrumentation-fastapi>=0.66b1",
+    "opentelemetry-instrumentation-httpx>=0.66b1",
+    "opentelemetry-instrumentation-logging>=0.66b1",
+    "tzdata>=2026.5",
+    "uvicorn>=0.54.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.13,<0.14"]
+build-backend = "uv_build"

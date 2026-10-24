@@ -1,13 +1,9 @@
 import asyncio
-import socket
-import threading
-import time
 from datetime import time as clock
 from pathlib import Path
 from uuid import UUID
 
 import pytest
-import uvicorn
 from alembic import command
 from alembic.config import Config
 from pact import Verifier
@@ -33,21 +29,10 @@ def database_url():
 
 
 @pytest.fixture(scope="module")
-def provider_url(database_url):
-    with socket.socket() as probe:
-        probe.bind(("127.0.0.1", 0))
-        port = probe.getsockname()[1]
-    tokens = TokenVerifier("http://keycloak.test", lambda _: "unused")
-    server = uvicorn.Server(
-        uvicorn.Config(create_app(database_url, tokens), port=port, log_level="warning")
+def provider_url(database_url, serve):
+    return serve(
+        create_app(database_url, TokenVerifier("http://keycloak.test", lambda _: "unused"))
     )
-    thread = threading.Thread(target=server.run, daemon=True)
-    thread.start()
-    while not server.started:
-        time.sleep(0.05)
-    yield f"http://127.0.0.1:{port}"
-    server.should_exit = True
-    thread.join()
 
 
 async def prepare(database_url: str, state: str, parameters: dict[str, str]) -> None:
@@ -95,6 +80,7 @@ def test_catalog_honours_its_consumer_contracts(database_url, provider_url):
         .add_transport(url=provider_url)
         .add_source(PACTS / "booking-catalog.json")
         .add_source(PACTS / "waitlist-catalog.json")
+        .add_source(PACTS / "mcp-server-catalog.json")
         .state_handler(state_handler)
         .verify()
     )

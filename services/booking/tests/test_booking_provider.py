@@ -1,15 +1,11 @@
 import asyncio
 import json
-import socket
-import threading
-import time
 from datetime import UTC, datetime, timedelta
 from datetime import time as clock
 from pathlib import Path
 from uuid import uuid4
 
 import pytest
-import uvicorn
 from pact import Verifier
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -87,21 +83,10 @@ def catalog():
 
 
 @pytest.fixture(scope="module")
-def provider_url(database_url, catalog):
-    with socket.socket() as probe:
-        probe.bind(("127.0.0.1", 0))
-        port = probe.getsockname()[1]
-    tokens = TokenVerifier(ISSUER, lambda _: KEY.public_key())
-    server = uvicorn.Server(
-        uvicorn.Config(create_app(database_url, catalog, tokens), port=port, log_level="warning")
+def provider_url(database_url, catalog, serve):
+    yield serve(
+        create_app(database_url, catalog, TokenVerifier(ISSUER, lambda _: KEY.public_key()))
     )
-    thread = threading.Thread(target=server.run, daemon=True)
-    thread.start()
-    while not server.started:
-        time.sleep(0.05)
-    yield f"http://127.0.0.1:{port}"
-    server.should_exit = True
-    thread.join()
     asyncio.run(reset(database_url))
 
 
@@ -151,6 +136,7 @@ def test_booking_honours_its_consumer_contracts(database_url, catalog, provider_
         .add_source(PACTS / "waitlist-booking.json")
         .add_source(PACTS / "notification-booking.json")
         .add_source(PACTS / "analytics-booking.json")
+        .add_source(PACTS / "mcp-server-booking.json")
         .add_custom_headers(token("booking-holds"))
         .state_handler(state_handler)
         .verify()

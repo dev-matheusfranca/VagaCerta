@@ -1,0 +1,80 @@
+{{- with .Values.postgres }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+data:
+  databases.sql: |
+    {{- range .databases }}
+    CREATE DATABASE {{ . }};
+    {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  labels:
+    app.kubernetes.io/part-of: vagacerta
+spec:
+  selector:
+    app.kubernetes.io/name: postgres
+  ports:
+    - name: postgres
+      port: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: vagacerta
+spec:
+  serviceName: postgres
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres
+        app.kubernetes.io/part-of: vagacerta
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: postgres
+          image: {{ .image }}
+          env:
+            - name: POSTGRES_USER
+              value: {{ .user }}
+            - name: POSTGRES_PASSWORD
+              value: {{ .password }}
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          ports:
+            - name: postgres
+              containerPort: 5432
+          readinessProbe:
+            exec:
+              command: [pg_isready, -U, {{ .user }}]
+            periodSeconds: 2
+          resources:
+            requests: { cpu: 10m, memory: 64Mi }
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        - name: init
+          configMap:
+            name: postgres-init
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: {{ .storage }}
+{{- end }}

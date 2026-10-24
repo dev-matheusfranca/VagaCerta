@@ -1,0 +1,96 @@
+{{- range $name, $workload := .Values.workloads }}
+{{- if ne $workload.enabled false }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    app.kubernetes.io/name: {{ $name }}
+    app.kubernetes.io/part-of: vagacerta
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ $name }}
+        app.kubernetes.io/part-of: vagacerta
+    spec:
+      # Sem as variáveis KAFKA_PORT etc. que o Kubernetes injeta por Service: a imagem do Kafka as
+      # leria como configuração.
+      enableServiceLinks: false
+      {{- with $workload.waitFor }}
+      # Espera as dependências abrirem a porta, como o depends_on do Docker Compose.
+      initContainers:
+        - name: wait-for-dependencies
+          image: busybox:1.37
+          command:
+            - sh
+            - -c
+            - |
+              for target in {{ join " " . }}; do
+                until nc -z -w 1 "${target%:*}" "${target#*:}"; do sleep 2; done
+              done
+      {{- end }}
+      containers:
+        - name: {{ $name }}
+          image: {{ $workload.image }}
+          imagePullPolicy: IfNotPresent
+          {{- with $workload.command }}
+          command: {{ toJson . }}
+          {{- end }}
+          {{- with $workload.args }}
+          args: {{ toJson . }}
+          {{- end }}
+          env:
+            {{- if $workload.otel }}
+            - name: OTEL_SERVICE_NAME
+              value: {{ $name }}
+            {{- range $key, $value := $.Values.otel }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- end }}
+            {{- range $key, $value := $workload.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+          {{- with $workload.ports }}
+          ports:
+            {{- range $portName, $port := . }}
+            - name: {{ $portName }}
+              containerPort: {{ $port }}
+            {{- end }}
+          {{- end }}
+          {{- with $workload.readiness }}
+          readinessProbe: {{- toYaml . | nindent 12 }}
+          {{- end }}
+          resources:
+            requests: { cpu: 10m, memory: 64Mi }
+{{- with $workload.ports }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    app.kubernetes.io/part-of: vagacerta
+spec:
+  type: {{ ternary "NodePort" "ClusterIP" (hasKey $workload "nodePorts") }}
+  selector:
+    app.kubernetes.io/name: {{ $name }}
+  ports:
+    {{- range $portName, $port := . }}
+    - name: {{ $portName }}
+      port: {{ $port }}
+      targetPort: {{ $portName }}
+      {{- with (dig $portName nil ($workload.nodePorts | default dict)) }}
+      nodePort: {{ . }}
+      {{- end }}
+    {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
