@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from typing import Literal
 from uuid import UUID, uuid4
 
+from opentelemetry import propagate
 from pydantic import AwareDatetime, BaseModel
 
 from waitlist.models import Offer, OutboxEvent
@@ -23,7 +24,10 @@ class BookingCancelled(BaseModel):
 
 
 def offer_created(offer: Offer) -> OutboxEvent:
+    trace_context: dict[str, str] = {}
+    propagate.inject(trace_context)
     return OutboxEvent(
+        trace_context=trace_context,
         topic=WAITLIST_TOPIC,
         key=str(offer.id),
         payload={

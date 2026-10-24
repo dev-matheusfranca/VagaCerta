@@ -1,12 +1,19 @@
 from datetime import datetime
 from uuid import UUID
 
+from opentelemetry import metrics
 from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from waitlist.booking_client import BookingClient
 from waitlist.events import BookingCancelled, offer_created
 from waitlist.models import Entry, Offer, ProcessedEvent
+
+OFFERS = metrics.get_meter("waitlist").create_counter(
+    "vagacerta.waitlist.offers",
+    unit="{offer}",
+    description="Ofertas da lista de espera por resultado",
+)
 
 
 async def offer_slot(
@@ -44,6 +51,7 @@ async def offer_slot(
             session.add(offer)
             await session.flush()
             session.add(offer_created(offer))
+            OFFERS.add(1, {"outcome": "offered"})
             return offer
     return None
 
@@ -65,6 +73,7 @@ async def claim(
     if offer and offer.status == "pending" and offer.expires_at > now:
         if await booking.confirm(offer.booking_id):
             offer.status, offer.entry.status = "claimed", "booked"
+            OFFERS.add(1, {"outcome": "claimed"})
             await session.commit()
     return offer
 
@@ -81,9 +90,11 @@ async def expire_offers(
     for offer in offers:
         if await booking.release(offer.booking_id):
             offer.status, offer.entry.status = "expired", "waiting"
+            OFFERS.add(1, {"outcome": "expired"})
             await offer_slot(
                 session, booking, offer.entry.professional_id, offer.starts_at, minutes
             )
         else:
             offer.status, offer.entry.status = "claimed", "booked"
+            OFFERS.add(1, {"outcome": "claimed"})
     await session.commit()
