@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -9,12 +9,22 @@ from mcp.types import CallToolResult
 from opentelemetry import trace
 
 MAX_STEPS = 8
-WEEKDAYS = ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"]
+WEEKDAYS = [
+    "segunda-feira",
+    "terça-feira",
+    "quarta-feira",
+    "quinta-feira",
+    "sexta-feira",
+    "sábado",
+    "domingo",
+]
 SYSTEM = """Você é a assistente do VagaCerta, app de agendamento de barbearias, salões, clínicas e
-espaços de bem-estar. Hoje é {weekday}, {today}.
+espaços de bem-estar. Use exatamente estas datas (a primeira é hoje):
+{days}
 
 - Use as ferramentas para descobrir estabelecimentos, profissionais, serviços e horários. Nunca
   invente ids, horários ou preços.
+- Chame as ferramentas que precisar antes de responder: não diga que vai verificar, verifique.
 - Para agendar, peça o nome e o e-mail da pessoa e confirme serviço, profissional, dia e horário
   antes de chamar book_appointment.
 - Se o dia estiver lotado, ofereça outro dia ou a lista de espera.
@@ -23,9 +33,10 @@ espaços de bem-estar. Hoje é {weekday}, {today}.
 tracer = trace.get_tracer("assistant")
 
 
-def system_prompt(timezone: str) -> str:
-    now = datetime.now(ZoneInfo(timezone))
-    return SYSTEM.format(weekday=WEEKDAYS[now.weekday()], today=now.date().isoformat())
+def system_prompt(today: date) -> str:
+    # Modelos pequenos erram a conta de "terça que vem": as datas vão prontas.
+    days = (today + timedelta(days=i) for i in range(8))
+    return SYSTEM.format(days="\n".join(f"- {WEEKDAYS[d.weekday()]}: {d}" for d in days))
 
 
 def tool_output(result: CallToolResult) -> str:
@@ -49,7 +60,8 @@ async def reply(
         }
         for t in (await mcp.list_tools()).tools
     ]
-    messages = [{"role": "system", "content": system_prompt(timezone)}, *history]
+    today = datetime.now(ZoneInfo(timezone)).date()
+    messages = [{"role": "system", "content": system_prompt(today)}, *history]
     for _ in range(MAX_STEPS):
         with tracer.start_as_current_span(f"chat {model}") as span:
             response = await llm.post(
@@ -60,7 +72,9 @@ async def reply(
                     "tools": tools,
                     "stream": False,
                     "think": False,
-                    "options": {"num_ctx": 8192},
+                    # 6k tokens cabem uma conversa de agendamento e ainda deixam o modelo numa GPU
+                    # de 4 GB; temperatura baixa deixa as chamadas de ferramenta mais previsíveis.
+                    "options": {"num_ctx": 6144, "temperature": 0.2},
                 },
             )
             response.raise_for_status()

@@ -36,8 +36,17 @@ const items = computed(() =>
   }),
 )
 
+// Só o markdown que o modelo costuma usar, links e negrito, sem passar HTML para a página.
 function parts(text: string) {
-  return text.split(/(https?:\/\/\S+)/).map((part, i) => ({ link: i % 2 === 1, text: part }))
+  return text
+    .split(/(\[[^\]]+\]\(https?:\/\/[^)\s]+\)|https?:\/\/[^\s)\]]+|\*\*[^*]+\*\*)/)
+    .map((part, i) => {
+      if (i % 2 === 0) return { text: part }
+      const link = part.match(/^\[([^\]]+)\]\((.+)\)$/)
+      if (link) return { text: link[1], href: link[2] }
+      if (part.startsWith('**')) return { text: part.slice(2, -2), bold: true }
+      return { text: part, href: part }
+    })
 }
 
 async function send(text = draft.value) {
@@ -127,11 +136,14 @@ async function scroll() {
               >
                 <template v-for="(part, j) in parts(item.text)" :key="j">
                   <a
-                    v-if="part.link"
-                    :href="part.text"
-                    class="font-semibold text-brand-700 underline underline-offset-2"
+                    v-if="part.href"
+                    :href="part.href"
+                    target="_blank"
+                    rel="noopener"
+                    class="font-semibold break-all text-brand-700 underline underline-offset-2"
                     >{{ part.text }}</a
                   >
+                  <strong v-else-if="part.bold" class="font-bold">{{ part.text }}</strong>
                   <template v-else>{{ part.text }}</template>
                 </template>
               </p>
