@@ -16,4 +16,5 @@ RUN uv sync --frozen --no-dev --package $SERVICE \
 WORKDIR /app/services/$SERVICE
 EXPOSE 8000
 USER 10001
-CMD alembic upgrade head && opentelemetry-instrument uvicorn $SERVICE.main:app --host 0.0.0.0 --port 8000
+# exec: o uvicorn assume o processo e recebe o SIGTERM do docker stop e do Kubernetes.
+CMD ["sh", "-c", "alembic upgrade head && exec opentelemetry-instrument uvicorn $SERVICE.main:app --host 0.0.0.0 --port 8000"]

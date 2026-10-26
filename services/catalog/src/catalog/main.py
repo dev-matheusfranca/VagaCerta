@@ -7,7 +7,7 @@ from catalog.api import router
 from vagacerta_auth import TokenVerifier, keycloak_verifier
 
 DATABASE_URL = os.environ.get(
-    "DATABASE_URL", "postgresql+asyncpg://vagacerta:vagacerta@localhost:5433/catalog"
+    "DATABASE_URL", "postgresql+asyncpg://vagacerta@localhost:5433/catalog"
 )
 KEYCLOAK_ISSUER = os.environ.get("KEYCLOAK_ISSUER", "http://localhost:8080/auth/realms/vagacerta")
 KEYCLOAK_JWKS_URL = os.environ.get(

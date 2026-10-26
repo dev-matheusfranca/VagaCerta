@@ -7,6 +7,11 @@
 
 <p align="center">
   <a href="https://github.com/dev-matheusfranca/VagaCerta/actions/workflows/ci.yml"><img src="https://github.com/dev-matheusfranca/VagaCerta/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://sonarcloud.io/summary/new_code?id=dev-matheusfranca_VagaCerta"><img src="https://sonarcloud.io/api/project_badges/measure?project=dev-matheusfranca_VagaCerta&metric=alert_status" alt="Quality Gate do SonarCloud" /></a>
+  <a href="https://sonarcloud.io/summary/new_code?id=dev-matheusfranca_VagaCerta"><img src="https://sonarcloud.io/api/project_badges/measure?project=dev-matheusfranca_VagaCerta&metric=coverage" alt="Cobertura" /></a>
+  <a href="https://sonarcloud.io/summary/new_code?id=dev-matheusfranca_VagaCerta"><img src="https://sonarcloud.io/api/project_badges/measure?project=dev-matheusfranca_VagaCerta&metric=reliability_rating" alt="Confiabilidade" /></a>
+  <a href="https://sonarcloud.io/summary/new_code?id=dev-matheusfranca_VagaCerta"><img src="https://sonarcloud.io/api/project_badges/measure?project=dev-matheusfranca_VagaCerta&metric=security_rating" alt="Segurança" /></a>
+  <a href="https://sonarcloud.io/summary/new_code?id=dev-matheusfranca_VagaCerta"><img src="https://sonarcloud.io/api/project_badges/measure?project=dev-matheusfranca_VagaCerta&metric=sqale_rating" alt="Manutenibilidade" /></a>
   <img src="https://img.shields.io/badge/python-3.13-3776AB?logo=python&logoColor=white" alt="Python 3.13" />
   <img src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white" alt="FastAPI" />
   <img src="https://img.shields.io/badge/Apache%20Kafka-4-231F20?logo=apachekafka&logoColor=white" alt="Apache Kafka 4" />
@@ -467,6 +472,7 @@ Suba só a infraestrutura com Docker e rode cada processo num terminal:
 ```bash
 docker compose up -d catalog-db booking-db waitlist-db notification-db analytics-db audit-db webhooks-db kafka rabbitmq mailpit keycloak
 uv sync
+export PGPASSWORD=vagacerta   # senha dos bancos do Compose; o código não guarda senha
 
 (cd services/catalog && uv run alembic upgrade head && uv run python -m catalog.seed)
 (cd services/booking && uv run alembic upgrade head)
@@ -505,24 +511,24 @@ Para ver a telemetria rodando localmente, suba também o `lgtm` e troque `uv run
 
 | Serviço | Variável | Padrão |
 |---|---|---|
-| catalog | `DATABASE_URL` | `postgresql+asyncpg://vagacerta:vagacerta@localhost:5433/catalog` |
+| catalog | `DATABASE_URL` | `postgresql+asyncpg://vagacerta@localhost:5433/catalog` |
 | catalog, booking, analytics, audit, webhooks | `KEYCLOAK_ISSUER` | `http://localhost:8080/auth/realms/vagacerta` |
 | catalog, booking, analytics, audit, webhooks | `KEYCLOAK_JWKS_URL` | `<KEYCLOAK_ISSUER>/protocol/openid-connect/certs` |
-| booking | `DATABASE_URL` | `postgresql+asyncpg://vagacerta:vagacerta@localhost:5434/booking` |
+| booking | `DATABASE_URL` | `postgresql+asyncpg://vagacerta@localhost:5434/booking` |
 | booking | `CATALOG_URL` | `http://localhost:8001` |
 | booking relay | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9094` |
-| waitlist | `DATABASE_URL` | `postgresql+asyncpg://vagacerta:vagacerta@localhost:5436/waitlist` |
+| waitlist | `DATABASE_URL` | `postgresql+asyncpg://vagacerta@localhost:5436/waitlist` |
 | waitlist | `CATALOG_URL` / `BOOKING_URL` | `http://localhost:8001` / `http://localhost:8002` |
 | waitlist | `KEYCLOAK_TOKEN_URL` | `http://localhost:8080/auth/realms/vagacerta/protocol/openid-connect/token` |
 | waitlist | `CLIENT_ID` / `CLIENT_SECRET` | `waitlist-service` / `waitlist-dev-secret` |
 | waitlist | `OFFER_MINUTES` | `15` |
-| notification | `DATABASE_URL` | `postgresql+asyncpg://vagacerta:vagacerta@localhost:5435/notification` |
+| notification | `DATABASE_URL` | `postgresql+asyncpg://vagacerta@localhost:5435/notification` |
 | notification | `RABBITMQ_URL` | `amqp://guest:guest@localhost:5672/` |
 | notification | `SMTP_HOST` / `SMTP_PORT` | `localhost` / `1025` |
 | notification | `WEB_URL` | `http://localhost:8080` (usada nos links dos e-mails) |
-| analytics | `DATABASE_URL` | `postgresql+asyncpg://vagacerta:vagacerta@localhost:5437/analytics` |
-| audit | `DATABASE_URL` | `postgresql+asyncpg://vagacerta:vagacerta@localhost:5438/audit` |
-| webhooks | `DATABASE_URL` | `postgresql+asyncpg://vagacerta:vagacerta@localhost:5439/webhooks` |
+| analytics | `DATABASE_URL` | `postgresql+asyncpg://vagacerta@localhost:5437/analytics` |
+| audit | `DATABASE_URL` | `postgresql+asyncpg://vagacerta@localhost:5438/audit` |
+| webhooks | `DATABASE_URL` | `postgresql+asyncpg://vagacerta@localhost:5439/webhooks` |
 | webhooks | `RABBITMQ_URL` | `amqp://guest:guest@localhost:5672/` |
 | webhooks | `ALLOW_PRIVATE_TARGETS` | desligada; `true` aceita endereços internos (só na demonstração) |
 | mcp-server | `CATALOG_URL` / `BOOKING_URL` / `WAITLIST_URL` | `http://localhost:8001` / `:8002` / `:8003` |
@@ -530,6 +536,7 @@ Para ver a telemetria rodando localmente, suba também o `lgtm` e troque `uv run
 | assistant | `OLLAMA_URL` / `OLLAMA_MODEL` | `http://localhost:11434` / `qwen3:4b-instruct` |
 | assistant | `MCP_URL` / `TIMEZONE` | `http://localhost:8005/mcp` / `America/Sao_Paulo` |
 | relay, waitlist, notification, analytics, audit, webhooks | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9094` |
+| serviços com banco | `PGPASSWORD` | sem padrão; a senha entra pelo ambiente ou pela própria `DATABASE_URL` |
 | todos | `OTEL_SERVICE_NAME`, `OTEL_EXPORTER_OTLP_ENDPOINT` e demais `OTEL_*` | definidas no `docker-compose.yml` |
 
 ## Roteiro de demonstração
@@ -832,7 +839,7 @@ consumidor quebra a suíte do provedor.
 
 A cada push na `main` e na `develop`, e em todo pull request, o GitHub Actions roda a suíte, confere se os
 contratos versionados estão em dia e faz o build do front. Um job de segurança roda o Trivy, com os
-achados na aba *Security* do GitHub, e a cobertura vai para o SonarCloud. Dois jobs de ponta a ponta sobem
+achados na aba *Security* do GitHub, e o SonarCloud analisa o código e a cobertura dos serviços Python. Dois jobs de ponta a ponta sobem
 o sistema inteiro, um com Docker Compose e outro num cluster kind com o chart Helm, e executam o k6.
 
 ## Desempenho
