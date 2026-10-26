@@ -63,6 +63,13 @@ export interface DayStats {
   capacity_minutes: number | null
 }
 
+export interface TrailEntry {
+  seq: number
+  type: string
+  occurred_at: string
+  hash: string
+}
+
 export interface HourStats {
   weekday: number
   hour: number
@@ -159,6 +166,10 @@ export const api = {
     }),
   peakHours: async (businessId: string) =>
     request<HourStats[]>(`/api/analytics/businesses/${businessId}/peak-hours`, {
+      headers: await authorization(),
+    }),
+  trail: async (bookingId: string) =>
+    request<TrailEntry[]>(`/api/audit/bookings/${bookingId}/trail`, {
       headers: await authorization(),
     }),
   claimOffer: (id: string) =>
