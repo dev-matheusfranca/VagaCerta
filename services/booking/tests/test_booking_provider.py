@@ -94,6 +94,11 @@ def message(event: OutboxEvent) -> dict[str, object]:
     return {"contents": json.dumps(event.payload).encode(), "content_type": "application/json"}
 
 
+def outcome(booking: Booking, status: str) -> dict[str, object]:
+    booking.status = status
+    return message(events.booking_outcome(booking))
+
+
 def test_booking_honours_its_consumer_contracts(database_url, catalog, provider_url):
     def state_handler(state, parameters):
         # As interações de mensagem chegam com o estado vazio: não há o que preparar.
@@ -131,6 +136,8 @@ def test_booking_honours_its_consumer_contracts(database_url, catalog, provider_
                     )
                 ),
                 "a booking.cancelled event": message(events.booking_cancelled(sample)),
+                "a booking.completed event": outcome(sample, "completed"),
+                "a booking.no_show event": outcome(sample, "no_show"),
             }
         )
         .add_source(PACTS / "waitlist-booking.json")

@@ -81,6 +81,7 @@ def test_catalog_honours_its_consumer_contracts(database_url, provider_url):
         .add_source(PACTS / "booking-catalog.json")
         .add_source(PACTS / "waitlist-catalog.json")
         .add_source(PACTS / "mcp-server-catalog.json")
+        .add_source(PACTS / "analytics-catalog.json")
         .state_handler(state_handler)
         .verify()
     )
