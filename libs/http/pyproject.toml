@@ -1,0 +1,12 @@
+[project]
+name = "vagacerta-http"
+version = "0.1.0"
+description = "HTTP calls between VagaCerta services with retries and a circuit breaker."
+requires-python = ">=3.13"
+dependencies = [
+    "httpx>=0.28.1",
+]
+
+[build-system]
+requires = ["uv_build>=0.13,<0.14"]
+build-backend = "uv_build"
