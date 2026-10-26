@@ -320,12 +320,12 @@ services:
   gateway:
     build: gateway
     command:
-      - --entrypoints.web.address=:80
+      - --entrypoints.web.address=:8000
       - --providers.file.filename=/etc/traefik/dynamic.yml
       - --api.insecure=true
       - --ping=true
       - --accesslog=true
-    ports: ["8080:80", "8081:8080"]
+    ports: ["8080:8000", "8081:8080"]
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
       interval: 3s
@@ -337,7 +337,7 @@ services:
     profiles: [load]
     command: run /scripts/booking.js
     environment:
-      BASE_URL: http://gateway
+      BASE_URL: http://gateway:8000
     volumes: ["./load:/scripts:ro"]
     depends_on:
       gateway: { condition: service_healthy }

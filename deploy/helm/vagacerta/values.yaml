@@ -20,9 +20,22 @@ postgres:
   databases: [catalog, booking, waitlist, notification, analytics]
   storage: 1Gi
 
+# Imagens próprias: sem root, sem escalada de privilégio e sem capabilities do Linux.
+restricted: &restricted
+  runAsNonRoot: true
+  allowPrivilegeEscalation: false
+  capabilities: { drop: [ALL] }
+  seccompProfile: { type: RuntimeDefault }
+
+# Os serviços Python não escrevem em disco: o sistema de arquivos pode ser somente leitura.
+python-restricted: &python-restricted
+  <<: *restricted
+  readOnlyRootFilesystem: true
+
 workloads:
   catalog:
     image: vagacerta-catalog:latest
+    securityContext: *python-restricted
     otel: true
     command: [sh, -c, "alembic upgrade head && python -m catalog.seed && opentelemetry-instrument uvicorn catalog.main:app --host 0.0.0.0 --port 8000"]
     env:
@@ -37,6 +50,7 @@ workloads:
 
   booking:
     image: vagacerta-booking:latest
+    securityContext: *python-restricted
     otel: true
     command: [sh, -c, "alembic upgrade head && python -m booking.seed && opentelemetry-instrument uvicorn booking.main:app --host 0.0.0.0 --port 8000"]
     env:
@@ -49,6 +63,7 @@ workloads:
 
   booking-relay:
     image: vagacerta-booking:latest
+    securityContext: *python-restricted
     otel: true
     command: [opentelemetry-instrument, python, -m, booking.outbox_relay]
     env:
@@ -58,6 +73,7 @@ workloads:
 
   waitlist:
     image: vagacerta-waitlist:latest
+    securityContext: *python-restricted
     otel: true
     env:
       DATABASE_URL: postgresql+asyncpg://vagacerta:vagacerta@postgres:5432/waitlist
@@ -73,6 +89,7 @@ workloads:
 
   waitlist-worker:
     image: vagacerta-waitlist:latest
+    securityContext: *python-restricted
     otel: true
     command: [opentelemetry-instrument, python, -m, waitlist.worker]
     env:
@@ -87,6 +104,7 @@ workloads:
 
   notification:
     image: vagacerta-notification:latest
+    securityContext: *python-restricted
     otel: true
     command: [sh, -c, "alembic upgrade head && opentelemetry-instrument python -m notification"]
     env:
@@ -100,6 +118,7 @@ workloads:
 
   analytics:
     image: vagacerta-analytics:latest
+    securityContext: *python-restricted
     otel: true
     env:
       DATABASE_URL: postgresql+asyncpg://vagacerta:vagacerta@postgres:5432/analytics
@@ -111,6 +130,7 @@ workloads:
 
   analytics-worker:
     image: vagacerta-analytics:latest
+    securityContext: *python-restricted
     otel: true
     command: [opentelemetry-instrument, python, -m, analytics.worker]
     env:
@@ -120,6 +140,7 @@ workloads:
 
   mcp-server:
     image: vagacerta-mcp-server:latest
+    securityContext: *python-restricted
     otel: true
     command: [opentelemetry-instrument, uvicorn, mcp_server.main:app, --host, 0.0.0.0, --port, "8000"]
     env:
@@ -135,6 +156,7 @@ workloads:
   assistant:
     enabled: false
     image: vagacerta-assistant:latest
+    securityContext: *python-restricted
     otel: true
     command: [opentelemetry-instrument, uvicorn, assistant.main:app, --host, 0.0.0.0, --port, "8000"]
     env:
@@ -146,19 +168,22 @@ workloads:
 
   web:
     image: vagacerta-web:latest
-    ports: { http: 80 }
+    securityContext: *restricted
+    ports: { http: 8080 }
     readiness:
-      httpGet: { path: /, port: 80 }
+      httpGet: { path: /, port: 8080 }
       periodSeconds: 3
 
   # Porta 30080 do nó; o cluster kind a publica em localhost:8080.
   gateway:
     image: vagacerta-gateway:latest
-    args: [--entrypoints.web.address=:80, --providers.file.filename=/etc/traefik/dynamic.yml, --ping=true, --accesslog=true]
-    ports: { http: 80 }
+    securityContext: *restricted
+    args: [--entrypoints.web.address=:8000, --providers.file.filename=/etc/traefik/dynamic.yml, --ping=true, --accesslog=true]
+    ports: { http: 8000 }
     nodePorts: { http: 30080 }
     readiness:
-      httpGet: { path: /ping, port: 80 }
+      # O ping fica no entrypoint interno do Traefik, na 8080.
+      httpGet: { path: /ping, port: 8080 }
       periodSeconds: 3
 
   keycloak:
