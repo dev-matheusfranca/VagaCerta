@@ -52,8 +52,23 @@ dev = [
     "import-linter>=2.15",
     "mypy>=2.4.0",
     "pact-python>=4.2.0",
+    "pre-commit>=4.7.0",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
+    "pytest-cov>=7.1.0",
     "ruff>=0.17.2",
     "testcontainers[kafka,postgres,rabbitmq]>=4.15.0",
 ]
+
+[tool.coverage.run]
+source_pkgs = [
+    "analytics",
+    "assistant",
+    "booking",
+    "catalog",
+    "mcp_server",
+    "notification",
+    "vagacerta_auth",
+    "waitlist",
+]
+relative_files = true

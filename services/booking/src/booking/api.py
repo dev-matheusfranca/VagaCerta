@@ -113,6 +113,11 @@ async def reserve(
     if data.starts_at not in open_slots:
         raise HTTPException(422, "Horário fora do expediente do profissional ou já passou")
 
+    # Inserções simultâneas na exclusion constraint podem entrar em deadlock no PostgreSQL. Um lock
+    # por profissional, liberado no commit, põe na fila as tentativas de agendar com a mesma pessoa.
+    await session.execute(
+        select(func.pg_advisory_xact_lock(func.hashtextextended(str(data.professional_id), 0)))
+    )
     # Reservas vencidas não podem continuar bloqueando o horário na constraint do banco.
     await session.execute(
         update(models.Booking)
