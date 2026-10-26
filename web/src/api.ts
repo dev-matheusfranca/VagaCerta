@@ -70,6 +70,23 @@ export interface TrailEntry {
   hash: string
 }
 
+export interface Webhook {
+  id: string
+  url: string
+  events: string[]
+  created_at: string
+}
+
+export interface WebhookDelivery {
+  id: string
+  event_type: string
+  status: 'pending' | 'delivered' | 'failed'
+  attempts: number
+  last_status_code: number | null
+  last_error: string | null
+  updated_at: string
+}
+
 export interface HourStats {
   weekday: number
   hour: number
@@ -126,7 +143,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: { 'Content-Type': 'application/json', ...init?.headers },
   })
-  const body = await response.json()
+  const body = response.status === 204 ? undefined : await response.json()
   if (!response.ok) {
     const message = typeof body.detail === 'string' ? body.detail : 'Verifique os dados informados'
     throw new ApiError(response.status, message)
@@ -170,6 +187,25 @@ export const api = {
     }),
   trail: async (bookingId: string) =>
     request<TrailEntry[]>(`/api/audit/bookings/${bookingId}/trail`, {
+      headers: await authorization(),
+    }),
+  webhooks: async (businessId: string) =>
+    request<Webhook[]>(`/api/webhooks/businesses/${businessId}/webhooks`, {
+      headers: await authorization(),
+    }),
+  createWebhook: async (businessId: string, url: string, events: string[]) =>
+    request<Webhook & { secret: string }>(`/api/webhooks/businesses/${businessId}/webhooks`, {
+      method: 'POST',
+      body: JSON.stringify({ url, events }),
+      headers: await authorization(),
+    }),
+  deleteWebhook: async (businessId: string, id: string) =>
+    request<void>(`/api/webhooks/businesses/${businessId}/webhooks/${id}`, {
+      method: 'DELETE',
+      headers: await authorization(),
+    }),
+  webhookDeliveries: async (businessId: string, id: string) =>
+    request<WebhookDelivery[]>(`/api/webhooks/businesses/${businessId}/webhooks/${id}/deliveries`, {
       headers: await authorization(),
     }),
   claimOffer: (id: string) =>

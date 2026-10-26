@@ -19,6 +19,7 @@ members = [
     "vagacerta-auth",
     "vagacerta-http",
     "waitlist",
+    "webhooks",
 ]
 
 [manifest.dependency-groups]
@@ -2950,6 +2951,51 @@ requires-dist = [
     { name = "tzdata", specifier = ">=2026.5" },
     { name = "uvicorn", specifier = ">=0.54.0" },
     { name = "vagacerta-http", editable = "libs/http" },
+]
+
+[[package]]
+name = "webhooks"
+version = "0.1.0"
+source = { editable = "services/webhooks" }
+dependencies = [
+    { name = "aio-pika" },
+    { name = "aiokafka" },
+    { name = "alembic" },
+    { name = "asyncpg" },
+    { name = "fastapi" },
+    { name = "httpx" },
+    { name = "opentelemetry-distro" },
+    { name = "opentelemetry-exporter-otlp-proto-http" },
+    { name = "opentelemetry-instrumentation-aio-pika" },
+    { name = "opentelemetry-instrumentation-aiokafka" },
+    { name = "opentelemetry-instrumentation-asyncpg" },
+    { name = "opentelemetry-instrumentation-fastapi" },
+    { name = "opentelemetry-instrumentation-httpx" },
+    { name = "opentelemetry-instrumentation-logging" },
+    { name = "sqlalchemy", extra = ["asyncio"] },
+    { name = "uvicorn" },
+    { name = "vagacerta-auth" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "aio-pika", specifier = ">=10.1.1" },
+    { name = "aiokafka", specifier = ">=0.14.0" },
+    { name = "alembic", specifier = ">=1.20.1" },
+    { name = "asyncpg", specifier = ">=0.32.0" },
+    { name = "fastapi", specifier = ">=0.161.1" },
+    { name = "httpx", specifier = ">=0.28.1" },
+    { name = "opentelemetry-distro", specifier = ">=0.66b1" },
+    { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.45.1" },
+    { name = "opentelemetry-instrumentation-aio-pika", specifier = ">=0.66b1" },
+    { name = "opentelemetry-instrumentation-aiokafka", specifier = ">=0.66b1" },
+    { name = "opentelemetry-instrumentation-asyncpg", specifier = ">=0.66b1" },
+    { name = "opentelemetry-instrumentation-fastapi", specifier = ">=0.66b1" },
+    { name = "opentelemetry-instrumentation-httpx", specifier = ">=0.66b1" },
+    { name = "opentelemetry-instrumentation-logging", specifier = ">=0.66b1" },
+    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.1.6" },
+    { name = "uvicorn", specifier = ">=0.54.0" },
+    { name = "vagacerta-auth", editable = "libs/auth" },
 ]
 
 [[package]]

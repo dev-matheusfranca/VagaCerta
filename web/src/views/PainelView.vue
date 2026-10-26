@@ -17,6 +17,7 @@ import { keycloak } from '../auth'
 import BookingTrail from '../components/BookingTrail.vue'
 import PastStats from '../components/PastStats.vue'
 import UpcomingStats from '../components/UpcomingStats.vue'
+import WebhooksCard from '../components/WebhooksCard.vue'
 import { category, currency, initials, longDate, time } from '../format'
 
 const business = ref<BusinessDetail>()
@@ -318,6 +319,7 @@ async function cancel(booking: Booking) {
 
       <UpcomingStats :business-id="business.id" :timezone="business.timezone" />
       <PastStats :business-id="business.id" :timezone="business.timezone" />
+      <WebhooksCard :business-id="business.id" :timezone="business.timezone" />
       <BookingTrail
         v-if="trailOf"
         :booking="trailOf"
