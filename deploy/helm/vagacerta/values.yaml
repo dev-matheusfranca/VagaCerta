@@ -123,6 +123,7 @@ workloads:
     env:
       DATABASE_URL: postgresql+asyncpg://vagacerta:vagacerta@postgres:5432/analytics
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      CATALOG_URL: http://catalog:8000
       KEYCLOAK_JWKS_URL: http://keycloak:8080/auth/realms/vagacerta/protocol/openid-connect/certs
     ports: { http: 8000 }
     readiness: *api-readiness
