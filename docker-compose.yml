@@ -12,7 +12,6 @@ x-api-healthcheck: &api-healthcheck
   interval: 3s
   retries: 20
 
-# Traces, métricas e logs de todos os serviços Python vão para o Grafana LGTM via OTLP.
 x-otel: &otel
   OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4318
   OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
@@ -219,7 +218,7 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
       KEYCLOAK_JWKS_URL: *jwks
-      # Demonstração local: deixa entregar ao n8n, que está na rede do Docker.
+      # Só para a demo: o n8n fica na rede interna do Docker.
       ALLOW_PRIVATE_TARGETS: "true"
     ports: ["8008:8000"]
     healthcheck: *api-healthcheck

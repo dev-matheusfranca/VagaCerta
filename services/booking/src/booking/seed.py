@@ -1,5 +1,5 @@
-"""Dados de demonstração da clínica: o próximo dia útil da Dra. Fernanda lotado, para a lista de
-espera, e os últimos 30 dias atendidos, para o painel abrir com faltas, ocupação e horários de pico.
+"""Dados de demonstração da clínica: o próximo dia útil da Dra. Fernanda lotado (lista de espera)
+e 30 dias de histórico com faltas (painel).
 """
 
 import asyncio

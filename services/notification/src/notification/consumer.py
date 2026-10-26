@@ -22,7 +22,7 @@ Publish = Callable[[EmailMessage], Awaitable[None]]
 async def handle_event(
     event: Event, session: AsyncSession, publish: Publish, now: datetime
 ) -> None:
-    # O Kafka entrega pelo menos uma vez: o id do evento garante que cada um é tratado uma vez só.
+    # O Kafka entrega at-least-once; o event_id deduplica.
     if await session.get(ProcessedEvent, event.event_id):
         return
     session.add(ProcessedEvent(id=event.event_id))

@@ -9,24 +9,7 @@
   <a href="https://github.com/dev-matheusfranca/VagaCerta/actions/workflows/ci.yml"><img src="https://github.com/dev-matheusfranca/VagaCerta/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="https://sonarcloud.io/summary/new_code?id=dev-matheusfranca_VagaCerta"><img src="https://sonarcloud.io/api/project_badges/measure?project=dev-matheusfranca_VagaCerta&metric=alert_status" alt="Quality Gate do SonarCloud" /></a>
   <a href="https://sonarcloud.io/summary/new_code?id=dev-matheusfranca_VagaCerta"><img src="https://sonarcloud.io/api/project_badges/measure?project=dev-matheusfranca_VagaCerta&metric=coverage" alt="Cobertura" /></a>
-  <a href="https://sonarcloud.io/summary/new_code?id=dev-matheusfranca_VagaCerta"><img src="https://sonarcloud.io/api/project_badges/measure?project=dev-matheusfranca_VagaCerta&metric=reliability_rating" alt="Confiabilidade" /></a>
-  <a href="https://sonarcloud.io/summary/new_code?id=dev-matheusfranca_VagaCerta"><img src="https://sonarcloud.io/api/project_badges/measure?project=dev-matheusfranca_VagaCerta&metric=security_rating" alt="Segurança" /></a>
-  <a href="https://sonarcloud.io/summary/new_code?id=dev-matheusfranca_VagaCerta"><img src="https://sonarcloud.io/api/project_badges/measure?project=dev-matheusfranca_VagaCerta&metric=sqale_rating" alt="Manutenibilidade" /></a>
   <img src="https://img.shields.io/badge/python-3.13-3776AB?logo=python&logoColor=white" alt="Python 3.13" />
-  <img src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white" alt="FastAPI" />
-  <img src="https://img.shields.io/badge/Apache%20Kafka-4-231F20?logo=apachekafka&logoColor=white" alt="Apache Kafka 4" />
-  <img src="https://img.shields.io/badge/RabbitMQ-4-FF6600?logo=rabbitmq&logoColor=white" alt="RabbitMQ 4" />
-  <img src="https://img.shields.io/badge/Keycloak-26-4D4D4D?logo=keycloak&logoColor=white" alt="Keycloak 26" />
-  <img src="https://img.shields.io/badge/Traefik-3-24A1C1?logo=traefikproxy&logoColor=white" alt="Traefik 3" />
-  <img src="https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL 17" />
-  <img src="https://img.shields.io/badge/OpenTelemetry-425CC7?logo=opentelemetry&logoColor=white" alt="OpenTelemetry" />
-  <img src="https://img.shields.io/badge/Grafana-F46800?logo=grafana&logoColor=white" alt="Grafana" />
-  <img src="https://img.shields.io/badge/Pact-contratos-0B7285" alt="Pact" />
-  <img src="https://img.shields.io/badge/Kubernetes-kind%20%2B%20Helm-326CE5?logo=kubernetes&logoColor=white" alt="Kubernetes com kind e Helm" />
-  <img src="https://img.shields.io/badge/Ollama-LLM%20local-000000?logo=ollama&logoColor=white" alt="Ollama" />
-  <img src="https://img.shields.io/badge/MCP-servidor-6E56CF" alt="Servidor MCP" />
-  <img src="https://img.shields.io/badge/n8n-webhooks-EA4B71?logo=n8n&logoColor=white" alt="Webhooks com n8n" />
-  <img src="https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white" alt="Vue 3" />
   <img src="https://img.shields.io/badge/licen%C3%A7a-MIT-green" alt="Licença MIT" />
 </p>
 
@@ -65,11 +48,11 @@ WhatsApp. Isso gera três problemas do dia a dia:
 3. **Faltas e cadeira vazia** quando alguém esquece ou cancela em cima da hora e ninguém fica sabendo.
 
 O VagaCerta deixa o cliente escolher serviço, profissional e horário em poucos cliques, a qualquer hora.
-O sistema **garante que um horário nunca é reservado duas vezes**, mesmo com muita gente tentando ao mesmo
+O sistema garante que um horário nunca é reservado duas vezes, mesmo com muita gente tentando ao mesmo
 tempo; avisa por e-mail na confirmação, no cancelamento e antes do atendimento; e, quando alguém cancela,
-**oferece o horário automaticamente para a próxima pessoa da lista de espera**.
+oferece o horário automaticamente para a próxima pessoa da lista de espera.
 
-O projeto evolui em fases, até uma arquitetura completa orientada a eventos. Veja o [roadmap](#roadmap).
+O projeto foi construído em fases; o que entrou em cada uma está no [roadmap](#roadmap).
 
 ## Funcionalidades
 
@@ -96,27 +79,6 @@ O projeto evolui em fases, até uma arquitetura completa orientada a eventos. Ve
   horário (agendado, oferecido à fila, cancelado, compareceu), num registro que não pode ser alterado.
 - **Integrações:** o dono cadastra o endereço de outro sistema (n8n, planilha, CRM) e escolhe os eventos;
   o VagaCerta avisa a cada evento, com assinatura, novas tentativas e o status de cada entrega no painel.
-
-**Por baixo**
-
-- Microsserviços com banco próprio, eventos no Kafka com outbox transacional e e-mails no RabbitMQ com
-  retry e dead-letter queue.
-- API gateway com rate limit, autenticação OIDC, tokens de serviço entre microsserviços.
-- Serviço de Analytics com CQRS: read models montados a partir dos eventos.
-- Traces, métricas e logs com OpenTelemetry e Grafana: um cancelamento vira um único trace, do clique ao
-  e-mail.
-- Testes de contrato com Pact entre todos os serviços, inclusive nos eventos do Kafka.
-- Servidor MCP com as ferramentas de agendamento, usado pelo assistente e por qualquer cliente MCP.
-- Kubernetes com Helm e kind: o CI sobe o sistema inteiro num cluster e roda o teste de carga nele.
-- Resiliência: novas tentativas e circuit breaker entre serviços. O Booking continua respondendo com o
-  Catalog fora do ar, e os eventos esperam no outbox enquanto o Kafka está fora.
-- Segurança na esteira: gitleaks antes de cada commit, Trivy nas imagens, dependências e chart, e imagens
-  que rodam sem root.
-- Trilha de auditoria só de inserção, com cada evento encadeado ao anterior por hash: uma adulteração
-  no banco é detectada e apontada.
-- Webhooks de saída assinados com HMAC-SHA256, entregues pelo RabbitMQ com retry e dead-letter, e
-  protegidos contra SSRF.
-- Teste de carga no CI e documentação interativa (OpenAPI/Swagger) em todos os serviços.
 
 ## Telas
 
@@ -571,7 +533,7 @@ Com a stack no ar (`docker compose up --build`):
 
 A documentação interativa completa fica em `/docs` em cada serviço.
 
-### Catalog — `:8001` · `/api/catalog`
+### Catalog (`:8001`, `/api/catalog`)
 
 | Método | Endpoint | Acesso | Descrição |
 |---|---|---|---|
@@ -581,7 +543,7 @@ A documentação interativa completa fica em `/docs` em cada serviço.
 | `POST` | `/businesses/{id}/professionals` | `admin` | Adiciona um profissional com o expediente semanal |
 | `POST` | `/businesses/{id}/services` | `admin` | Adiciona um serviço com duração e preço |
 
-### Booking — `:8002` · `/api/booking`
+### Booking (`:8002`, `/api/booking`)
 
 | Método | Endpoint | Acesso | Descrição |
 |---|---|---|---|
@@ -595,7 +557,7 @@ A documentação interativa completa fica em `/docs` em cada serviço.
 | `POST` | `/bookings/{id}/confirm` | `booking-holds` | Transforma a reserva em agendamento |
 | `POST` | `/bookings/{id}/release` | `booking-holds` | Libera a reserva (compensação) |
 
-### Waitlist — `:8003` · `/api/waitlist`
+### Waitlist (`:8003`, `/api/waitlist`)
 
 | Método | Endpoint | Acesso | Descrição |
 |---|---|---|---|
@@ -603,21 +565,21 @@ A documentação interativa completa fica em `/docs` em cada serviço.
 | `GET` | `/offers/{id}` | link do e-mail | Detalhes da oferta |
 | `POST` | `/offers/{id}/claim` | link do e-mail | Confirma a oferta antes de expirar |
 
-### Analytics — `:8004` · `/api/analytics`
+### Analytics (`:8004`, `/api/analytics`)
 
 | Método | Endpoint | Acesso | Descrição |
 |---|---|---|---|
 | `GET` | `/businesses/{id}/stats?from=&to=` | `owner` do estabelecimento | Por dia: agendamentos, cancelamentos, receita, comparecimentos, faltas, minutos agendados, capacidade e ofertas da lista de espera |
 | `GET` | `/businesses/{id}/peak-hours` | `owner` do estabelecimento | Agendamentos por dia da semana e hora |
 
-### Audit — `:8007` · `/api/audit`
+### Audit (`:8007`, `/api/audit`)
 
 | Método | Endpoint | Acesso | Descrição |
 |---|---|---|---|
 | `GET` | `/bookings/{id}/trail` | `owner` do estabelecimento | Eventos do agendamento em ordem, com o hash de cada um |
 | `GET` | `/verify` | `admin` | Recalcula a corrente inteira e aponta o primeiro registro adulterado |
 
-### Webhooks — `:8008` · `/api/webhooks`
+### Webhooks (`:8008`, `/api/webhooks`)
 
 | Método | Endpoint | Acesso | Descrição |
 |---|---|---|---|
@@ -629,13 +591,13 @@ A documentação interativa completa fica em `/docs` em cada serviço.
 Cada entrega é um `POST` com o evento no corpo e os cabeçalhos `X-VagaCerta-Event`,
 `X-VagaCerta-Delivery` e `X-VagaCerta-Signature` (`sha256=<HMAC do corpo>`).
 
-### Assistant — `:8006` · `/api/assistant`
+### Assistant (`:8006`, `/api/assistant`)
 
 | Método | Endpoint | Acesso | Descrição |
 |---|---|---|---|
 | `POST` | `/chat` | público | Recebe a conversa e devolve a conversa com a resposta e as ferramentas usadas |
 
-### MCP server — `:8005` · `/mcp`
+### MCP server (`:8005`, `/mcp`)
 
 Streamable HTTP, sem estado. Ferramentas:
 
@@ -861,16 +823,16 @@ no Docker Desktop de uma máquina de desenvolvimento.
 
 ## Roadmap
 
-- [x] **Fase 1** — Catalog e Booking, disponibilidade em tempo real, prevenção de conflito, front-end e CI
-- [x] **Fase 2** — Eventos no Kafka com outbox transacional; serviço Notification com e-mails no RabbitMQ
+- [x] **Fase 1:** Catalog e Booking, disponibilidade em tempo real, prevenção de conflito, front-end e CI
+- [x] **Fase 2:** Eventos no Kafka com outbox transacional; serviço Notification com e-mails no RabbitMQ
       (retry e dead-letter queue) e lembretes
-- [x] **Fase 3** — Lista de espera como saga; Keycloak com painel do estabelecimento e token de serviço;
+- [x] **Fase 3:** Lista de espera como saga; Keycloak com painel do estabelecimento e token de serviço;
       API gateway com Traefik; teste de carga com k6 no CI
-- [x] **Fase 4** — Observabilidade com OpenTelemetry, Prometheus, Grafana e Loki; testes de contrato com
+- [x] **Fase 4:** Observabilidade com OpenTelemetry, Prometheus, Grafana e Loki; testes de contrato com
       Pact; serviço de Analytics com CQRS
-- [x] **Fase 5** — Kubernetes com kind e Helm; agendamento em linguagem natural com LLM local (Ollama) e
+- [x] **Fase 5:** Kubernetes com kind e Helm; agendamento em linguagem natural com LLM local (Ollama) e
       servidor MCP
-- [x] **Fase 6** — qualidade e segurança na esteira e resiliência entre serviços (v0.6.0);
+- [x] **Fase 6:** Qualidade e segurança na esteira e resiliência entre serviços (v0.6.0);
       comparecimento, faltas e ocupação no Analytics (v0.7.0); trilha de auditoria e webhooks de saída
       com demonstração no n8n (v0.8.0)
 
@@ -923,7 +885,7 @@ Distribuído sob a licença MIT. Veja [LICENSE](LICENSE).
 
 ## Autor
 
-**Matheus França Santana** — Desenvolvedor back-end
+**Matheus França Santana**, desenvolvedor back-end
 
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-matheusfrancasantana-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/matheusfrancasantana/)
 [![GitHub](https://img.shields.io/badge/GitHub-dev--matheusfranca-181717?logo=github&logoColor=white)](https://github.com/dev-matheusfranca)

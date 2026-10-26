@@ -9,8 +9,6 @@ class Base(DeclarativeBase):
 
 
 class DailyStats(Base):
-    """Read model: números de um estabelecimento por dia de atendimento."""
-
     __tablename__ = "daily_stats"
 
     business_id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
@@ -28,7 +26,7 @@ class DailyStats(Base):
 
 
 class HourlyStats(Base):
-    """Read model: agendamentos por dia da semana e hora, no horário local, para achar o pico."""
+    """Agendamentos por dia da semana e hora, no fuso do estabelecimento."""
 
     __tablename__ = "hourly_stats"
 

@@ -29,8 +29,8 @@ def retry_queue(failures: int) -> str:
 async def declare_queues(channel: AbstractChannel, retry_delays: tuple[float, ...]) -> None:
     await channel.declare_queue(EMAIL_QUEUE, durable=True)
     await channel.declare_queue(DEAD_LETTER_QUEUE, durable=True)
-    # Uma fila por tentativa, cada uma com TTL fixo: ao expirar, a mensagem volta para a fila
-    # principal. Backoff crescente sem plugin e sem o bloqueio de TTLs diferentes na mesma fila.
+    # Uma fila por tentativa, cada uma com TTL fixo que devolve a mensagem à fila principal. Dá
+    # backoff crescente sem plugin e sem o head-of-line blocking de TTLs diferentes numa fila só.
     for failures, delay in enumerate(retry_delays, start=1):
         await channel.declare_queue(
             retry_queue(failures),

@@ -26,7 +26,7 @@ def upgrade() -> None:
         sa.Column("prev_hash", sa.String(64), nullable=False),
         sa.Column("hash", sa.String(64), nullable=False),
     )
-    # O banco recusa qualquer alteração: o registro só cresce.
+    # Append-only garantido pelo banco, não só pela aplicação.
     op.execute(
         """
         CREATE FUNCTION audit_log_is_append_only() RETURNS trigger AS $$

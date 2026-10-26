@@ -50,7 +50,7 @@ class SubscriptionOut(BaseModel):
 
 
 class CreatedSubscription(SubscriptionOut):
-    # O segredo só aparece aqui: quem recebe precisa dele para conferir a assinatura.
+    # Única resposta que traz o segredo.
     secret: str
 
 
