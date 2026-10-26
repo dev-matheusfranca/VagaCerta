@@ -24,6 +24,12 @@ A aplicação valida se o horário cabe no expediente, insere e transforma a vio
 ## Consequências
 
 - Correto sob qualquer concorrência, sem locks na aplicação nem locks distribuídos.
+- Sob disputa forte, inserções simultâneas na exclusion constraint podem entrar em **deadlock** no
+  PostgreSQL: cada transação grava sua linha e espera a outra para checar o conflito. No teste de carga,
+  isso devolvia `500` e segurava conexões por 1 segundo, até o banco desfazer o ciclo. Antes de inserir,
+  a transação pega um `pg_advisory_xact_lock` pelo profissional, liberado no commit: as tentativas de
+  agendar com o mesmo profissional entram em fila e as perdedoras recebem `409` na hora. A constraint
+  continua sendo a garantia; profissionais diferentes não esperam uns pelos outros.
 - Detecta sobreposição de qualquer duração, não só horários de início iguais (um índice único deixaria
   passar 09:00–10:00 contra 09:30–10:30).
 - Agendamentos cancelados ficam fora da constraint, então o horário pode ser reagendado na hora.
