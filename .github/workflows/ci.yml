@@ -26,9 +26,9 @@ jobs:
       - run: uv run mypy libs/*/src services/*/src
       - run: uv run lint-imports
       - run: uv run pytest -v --cov --cov-report=xml
-      # Os testes dos consumidores regeram os contratos: os versionados precisam estar em dia.
+      # Falha se os testes regeraram algum contrato diferente do versionado.
       - run: git diff --exit-code pacts/
-      # A análise do SonarCloud roda quando o token estiver cadastrado nos secrets do repositório.
+      # PRs de forks não recebem o SONAR_TOKEN.
       - if: env.SONAR_TOKEN != ''
         uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
 
@@ -43,14 +43,12 @@ jobs:
         with:
           version: v0.76.1
           cache: true
-      # Dependências (uv.lock, package-lock.json) e configuração (Dockerfiles, Compose, Helm) vão
-      # para a aba Security do GitHub.
+      # Só reporta na aba Security; quem quebra o build é a varredura das imagens, mais abaixo.
       - run: trivy fs --scanners vuln,misconfig --ignorefile .trivyignore.yaml --format sarif --output trivy.sarif .
       - uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy.sarif
       - run: docker compose --profile ai build catalog booking waitlist notification analytics audit webhooks mcp-server assistant web
-      # Nas imagens que construímos, vulnerabilidade alta ou crítica com correção disponível quebra o build.
       - run: |
           for service in catalog booking waitlist notification analytics audit webhooks mcp-server assistant web; do
             trivy image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 vagacerta-$service:latest

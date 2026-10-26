@@ -1,7 +1,6 @@
 # Credenciais de demonstração, as mesmas do Docker Compose. Num ambiente real viriam de Secrets
 # gerenciados por um cofre (Vault, External Secrets).
 
-# Todos os serviços Python mandam traces, métricas e logs para o lgtm via OTLP.
 otel:
   OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4318
   OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
@@ -12,7 +11,7 @@ otel:
   OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED: "true"
   OTEL_SEMCONV_STABILITY_OPT_IN: http
 
-# Um servidor PostgreSQL com um banco por serviço: cada serviço continua dono do seu schema.
+# No cluster é um PostgreSQL só, mas cada serviço continua com o próprio banco.
 postgres:
   image: postgres:17-alpine
   user: vagacerta
@@ -20,14 +19,13 @@ postgres:
   databases: [catalog, booking, waitlist, notification, analytics, audit, webhooks]
   storage: 1Gi
 
-# Imagens próprias: sem root, sem escalada de privilégio e sem capabilities do Linux.
 restricted: &restricted
   runAsNonRoot: true
   allowPrivilegeEscalation: false
   capabilities: { drop: [ALL] }
   seccompProfile: { type: RuntimeDefault }
 
-# Os serviços Python não escrevem em disco: o sistema de arquivos pode ser somente leitura.
+# Os serviços Python não escrevem em disco.
 python-restricted: &python-restricted
   <<: *restricted
   readOnlyRootFilesystem: true
@@ -219,7 +217,6 @@ workloads:
       httpGet: { path: /, port: 8080 }
       periodSeconds: 3
 
-  # Porta 30080 do nó; o cluster kind a publica em localhost:8080.
   gateway:
     image: vagacerta-gateway:latest
     securityContext: *restricted
@@ -279,13 +276,11 @@ workloads:
       tcpSocket: { port: 5672 }
       periodSeconds: 5
 
-  # Porta 30825 do nó; o cluster kind a publica em localhost:8025.
   mailpit:
     image: axllent/mailpit:v1.28
     ports: { smtp: 1025, http: 8025 }
     nodePorts: { http: 30825 }
 
-  # Porta 30300 do nó; o cluster kind a publica em localhost:3000.
   lgtm:
     image: vagacerta-lgtm:latest
     ports: { grafana: 3000, otlp-http: 4318 }

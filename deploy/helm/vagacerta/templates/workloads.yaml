@@ -19,11 +19,10 @@ spec:
         app.kubernetes.io/name: {{ $name }}
         app.kubernetes.io/part-of: vagacerta
     spec:
-      # Sem as variáveis KAFKA_PORT etc. que o Kubernetes injeta por Service: a imagem do Kafka as
-      # leria como configuração.
+      # O Kubernetes injetaria KAFKA_PORT e afins, e a imagem do Kafka lê essas variáveis como config.
       enableServiceLinks: false
       {{- with $workload.waitFor }}
-      # Espera as dependências abrirem a porta, como o depends_on do Docker Compose.
+      # Faz o papel do depends_on do Compose.
       initContainers:
         - name: wait-for-dependencies
           image: busybox:1.37

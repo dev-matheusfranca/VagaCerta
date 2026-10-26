@@ -7,7 +7,7 @@ GENESIS = "0" * 64
 
 
 def digest(prev_hash: str, topic: str, payload: dict[str, Any]) -> str:
-    """Hash de um registro: depende do anterior, então mudar um quebra todos os seguintes."""
+    """Inclui o hash anterior, então alterar um registro invalida todos os seguintes."""
     content = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(f"{prev_hash}|{topic}|{content}".encode()).hexdigest()
 

@@ -38,8 +38,8 @@ class Business(BaseModel):
 
 
 class CatalogClient:
-    # O catálogo quase não muda e é lido em toda consulta de disponibilidade: um cache curto
-    # tira a chamada HTTP do caminho quente. Mudanças de expediente valem em até CACHE_SECONDS.
+    # Lido em toda consulta de disponibilidade e quase nunca muda (ADR 0007). Uma mudança de
+    # expediente leva até CACHE_SECONDS para aparecer.
     CACHE_SECONDS = 30
 
     def __init__(self, http: httpx.AsyncClient) -> None:

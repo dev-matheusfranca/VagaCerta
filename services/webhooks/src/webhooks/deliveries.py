@@ -26,7 +26,7 @@ RETRY_DELAYS = (5.0, 30.0, 120.0)
 
 
 def signature(secret: str, body: bytes) -> str:
-    """Assinatura que o destino recalcula com o segredo para saber que o envio veio daqui."""
+    """HMAC-SHA256 do corpo; o destino recalcula com o segredo para validar a origem."""
     return "sha256=" + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
 
 
@@ -37,7 +37,7 @@ def retry_queue(failures: int) -> str:
 async def declare_queues(channel: AbstractChannel, retry_delays: tuple[float, ...]) -> None:
     await channel.declare_queue(QUEUE, durable=True)
     await channel.declare_queue(DEAD_LETTER_QUEUE, durable=True)
-    # Mesmo esquema dos e-mails: uma fila por tentativa, cada uma com o seu TTL.
+    # Mesmo esquema de retry do mailer do Notification.
     for failures, delay in enumerate(retry_delays, start=1):
         await channel.declare_queue(
             retry_queue(failures),
@@ -64,10 +64,10 @@ async def publish(
 
 
 async def fan_out(session: AsyncSession, event: dict[str, Any]) -> list[UUID]:
-    """Uma entrega por assinatura interessada; devolve as que ainda não saíram.
+    """Cria uma entrega por assinatura interessada e devolve as pendentes.
 
-    Eventos de antes do cadastro ficam de fora, então reprocessar o Kafka não despeja o histórico
-    numa integração nova.
+    Eventos anteriores ao cadastro ficam de fora; senão, reprocessar o Kafka mandaria o histórico
+    inteiro para uma integração nova.
     """
     business_id = event.get("data", {}).get("business_id")
     if not business_id:
