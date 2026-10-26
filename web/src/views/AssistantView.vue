@@ -39,7 +39,7 @@ const items = computed(() =>
 // Só o markdown que o modelo costuma usar, links e negrito, sem passar HTML para a página.
 function parts(text: string) {
   return text
-    .split(/(\[[^\]]+\]\(https?:\/\/[^)\s]+\)|https?:\/\/[^\s)\]]+|\*\*[^*]+\*\*)/)
+    .split(/(\[[^[\]]+\]\(https?:\/\/[^)\s]+\)|https?:\/\/[^\s)\]]+|\*\*[^*]+\*\*)/)
     .map((part, i) => {
       if (i % 2 === 0) return { text: part }
       const link = part.match(/^\[([^\]]+)\]\((.+)\)$/)
