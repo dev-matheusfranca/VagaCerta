@@ -213,6 +213,9 @@ services:
 
   rabbitmq:
     image: rabbitmq:4.2-management-alpine
+    # Com o healthcheck rodando como root, ele podia criar o .erlang.cookie antes do servidor e
+    # deixá-lo ilegível para o usuário rabbitmq.
+    user: rabbitmq
     ports: ["5672:5672", "15672:15672"]
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
