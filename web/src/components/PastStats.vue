@@ -62,7 +62,7 @@ const kpis = computed(() => {
       icon: Clock,
       label: 'Horário de pico',
       value: peak ? `${WEEKDAYS[peak.weekday]}, ${peak.hour}h` : '—',
-      hint: peak ? `${peak.bookings} agendamentos nesse horário` : 'Sem agendamentos ainda',
+      hint: peak ? `${peak.bookings} agendamentos` : 'Sem agendamentos ainda',
     },
   ]
 })
