@@ -268,3 +268,58 @@ async def test_owner_cannot_see_another_business_agenda(client):
     )
 
     assert agenda.status_code == 403
+
+
+async def past_visit(app) -> Booking:
+    starts_at = datetime.combine(TOMORROW - timedelta(days=2), time(10), TZ)
+    visit = Booking(
+        id=uuid4(),
+        **SCHEDULE,
+        starts_at=starts_at,
+        ends_at=starts_at + timedelta(hours=1),
+        customer_name="Paciente Antigo",
+        customer_email="antigo@example.com",
+        status="confirmed",
+    )
+    async with app.state.sessionmaker() as session:
+        session.add(visit)
+        await session.commit()
+    return visit
+
+
+async def test_owner_records_that_the_customer_came(app, client):
+    visit = await past_visit(app)
+    owner = token("owner", businesses=(str(BUSINESS.id),))
+
+    response = await client.post(
+        f"/bookings/{visit.id}/outcome", json={"outcome": "completed"}, headers=owner
+    )
+    agenda = await client.get(
+        f"/businesses/{BUSINESS.id}/agenda",
+        params={"date": str(visit.starts_at.date())},
+        headers=owner,
+    )
+
+    assert response.json()["status"] == "completed"
+    assert [b["status"] for b in agenda.json()] == ["completed"]
+    async with app.state.sessionmaker() as session:
+        types = (await session.scalars(select(OutboxEvent.payload["type"].astext))).all()
+    assert types == ["booking.completed"]
+
+
+async def test_attendance_waits_for_the_visit_and_its_owner(app, client):
+    upcoming = (await client.post("/bookings", json=booking(9))).json()
+    visit = await past_visit(app)
+
+    too_early = await client.post(
+        f"/bookings/{upcoming['id']}/outcome",
+        json={"outcome": "no_show"},
+        headers=token("owner", businesses=(str(BUSINESS.id),)),
+    )
+    stranger = await client.post(
+        f"/bookings/{visit.id}/outcome",
+        json={"outcome": "no_show"},
+        headers=token("owner", businesses=(str(uuid4()),)),
+    )
+
+    assert (too_early.status_code, stranger.status_code) == (409, 403)

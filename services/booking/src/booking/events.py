@@ -60,3 +60,12 @@ def booking_cancelled(booking: Booking) -> OutboxEvent:
             "ends_at": booking.ends_at.isoformat(),
         },
     )
+
+
+def booking_outcome(booking: Booking) -> OutboxEvent:
+    """Fim do atendimento: `booking.completed` se a pessoa veio, `booking.no_show` se faltou."""
+    return _event(
+        booking,
+        f"booking.{booking.status}",
+        {"business_id": str(booking.business_id), "starts_at": booking.starts_at.isoformat()},
+    )
