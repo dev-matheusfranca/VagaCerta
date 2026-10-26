@@ -69,13 +69,16 @@ onMounted(load)
     </p>
 
     <form class="mt-5 space-y-3" @submit.prevent="add">
-      <input
-        v-model="url"
-        type="url"
-        required
-        placeholder="https://seu-sistema.com/webhook"
-        class="w-full rounded-xl bg-canvas px-4 py-2.5 ring-1 ring-ink/10 outline-none focus:ring-2 focus:ring-brand-500"
-      />
+      <label class="block">
+        <span class="sr-only">Endereço que recebe os eventos</span>
+        <input
+          v-model="url"
+          type="url"
+          required
+          placeholder="https://seu-sistema.com/webhook"
+          class="w-full rounded-xl bg-canvas px-4 py-2.5 ring-1 ring-ink/10 outline-none focus:ring-2 focus:ring-brand-500"
+        />
+      </label>
       <div class="flex flex-wrap gap-2">
         <label
           v-for="(label, type) in EVENTS"
@@ -87,6 +90,7 @@ onMounted(load)
         </label>
       </div>
       <button
+        type="submit"
         :disabled="saving || !events.length"
         class="inline-flex items-center gap-2 rounded-full bg-brand-700 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-brand-800 disabled:opacity-50"
       >

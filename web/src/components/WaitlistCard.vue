@@ -61,23 +61,30 @@ async function join() {
 
     <form v-if="!position" class="mt-4" @submit.prevent="join">
       <div class="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
-        <input
-          v-model="name"
-          required
-          minlength="2"
-          autocomplete="name"
-          placeholder="Seu nome"
-          class="w-full rounded-xl border border-amber-200 bg-white px-4 py-2.5 outline-none transition focus:border-amber-400 focus:ring-4 focus:ring-amber-400/20"
-        />
-        <input
-          v-model="email"
-          type="email"
-          required
-          autocomplete="email"
-          placeholder="voce@email.com"
-          class="w-full rounded-xl border border-amber-200 bg-white px-4 py-2.5 outline-none transition focus:border-amber-400 focus:ring-4 focus:ring-amber-400/20"
-        />
+        <label>
+          <span class="sr-only">Seu nome</span>
+          <input
+            v-model="name"
+            required
+            minlength="2"
+            autocomplete="name"
+            placeholder="Seu nome"
+            class="w-full rounded-xl border border-amber-200 bg-white px-4 py-2.5 outline-none transition focus:border-amber-400 focus:ring-4 focus:ring-amber-400/20"
+          />
+        </label>
+        <label>
+          <span class="sr-only">Seu e-mail</span>
+          <input
+            v-model="email"
+            type="email"
+            required
+            autocomplete="email"
+            placeholder="voce@email.com"
+            class="w-full rounded-xl border border-amber-200 bg-white px-4 py-2.5 outline-none transition focus:border-amber-400 focus:ring-4 focus:ring-amber-400/20"
+          />
+        </label>
         <button
+          type="submit"
           :disabled="sending"
           class="flex items-center justify-center gap-2 rounded-xl bg-amber-400 px-5 py-2.5 font-bold text-brand-950 transition hover:bg-amber-300 disabled:opacity-50"
         >

@@ -167,12 +167,15 @@ async function scroll() {
           {{ error }}
         </p>
         <form class="flex items-center gap-3 border-t border-ink/5 p-4" @submit.prevent="send()">
-          <input
-            v-model="draft"
-            type="text"
-            placeholder="Ex.: quero cortar o cabelo na terça às 15h"
-            class="flex-1 rounded-full bg-canvas px-5 py-3 ring-1 ring-ink/10 outline-none focus:ring-2 focus:ring-brand-500"
-          />
+          <label class="flex-1">
+            <span class="sr-only">Mensagem para o assistente</span>
+            <input
+              v-model="draft"
+              type="text"
+              placeholder="Ex.: quero cortar o cabelo na terça às 15h"
+              class="w-full rounded-full bg-canvas px-5 py-3 ring-1 ring-ink/10 outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </label>
           <button
             type="submit"
             :disabled="thinking || !draft.trim()"

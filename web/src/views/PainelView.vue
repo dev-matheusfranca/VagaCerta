@@ -171,11 +171,14 @@ async function cancel(booking: Booking) {
           >
             <ChevronLeft class="size-5" />
           </button>
-          <input
-            v-model="day"
-            type="date"
-            class="rounded-xl border border-ink/10 bg-canvas px-3 py-2 font-semibold outline-none focus:border-brand-500"
-          />
+          <label>
+            <span class="sr-only">Dia da agenda</span>
+            <input
+              v-model="day"
+              type="date"
+              class="rounded-xl border border-ink/10 bg-canvas px-3 py-2 font-semibold outline-none focus:border-brand-500"
+            />
+          </label>
           <button
             class="grid size-10 place-items-center rounded-xl bg-canvas transition hover:bg-brand-50"
             aria-label="Próximo dia"
