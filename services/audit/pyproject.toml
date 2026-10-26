@@ -1,0 +1,27 @@
+[project]
+name = "audit"
+version = "0.1.0"
+description = "Append-only, hash-chained audit trail of every domain event."
+requires-python = ">=3.13"
+dependencies = [
+    "aiokafka>=0.14.0",
+    "alembic>=1.20.1",
+    "asyncpg>=0.32.0",
+    "fastapi>=0.161.1",
+    "opentelemetry-distro>=0.66b1",
+    "opentelemetry-exporter-otlp-proto-http>=1.45.1",
+    "opentelemetry-instrumentation-aiokafka>=0.66b1",
+    "opentelemetry-instrumentation-asyncpg>=0.66b1",
+    "opentelemetry-instrumentation-fastapi>=0.66b1",
+    "opentelemetry-instrumentation-logging>=0.66b1",
+    "sqlalchemy[asyncio]>=2.1.6",
+    "uvicorn>=0.54.0",
+    "vagacerta-auth",
+]
+
+[build-system]
+requires = ["uv_build>=0.13,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv.sources]
+vagacerta-auth = { workspace = true }

@@ -5,6 +5,23 @@ Todas as mudanças relevantes do projeto ficam registradas neste arquivo.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto usa
 [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.8.0] - 2026-10-26
+
+### Adicionado
+
+- Serviço Audit: grava cada evento de agendamento e da lista de espera num registro só de inserção, com
+  cada linha encadeada à anterior por hash; o banco recusa alteração e exclusão, e `GET /verify` aponta o
+  primeiro registro adulterado.
+- Histórico do agendamento no painel: clicando no nome do cliente, o dono vê cada passo, com data e hash.
+- Serviço Webhooks: o dono cadastra endereços e eventos, e cada evento é entregue assinado com
+  HMAC-SHA256, com novas tentativas e dead-letter pelo RabbitMQ e recusa de endereços internos (SSRF).
+- Card "Integrações" no painel, com o cadastro, o segredo mostrado uma vez e o status de cada entrega.
+- Demonstração com n8n no perfil `integrations` do Compose: um fluxo pronto transforma cada agendamento
+  num e-mail para a equipe.
+- Audit e Webhooks no chart Helm, no gateway e na varredura do Trivy.
+- Contratos Pact dos eventos lidos pela auditoria e pelos webhooks.
+- ADRs 0016 (trilha de auditoria), 0017 (webhooks de saída) e 0018 (o que ficou fora do escopo).
+
 ## [0.7.0] - 2026-10-26
 
 ### Adicionado
@@ -179,6 +196,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 - Testes unitários, baseados em propriedades, de integração, de concorrência e de arquitetura.
 - Docker Compose, pipeline no GitHub Actions, README e ADRs 0001 e 0002.
 
+[0.8.0]: https://github.com/dev-matheusfranca/VagaCerta/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/dev-matheusfranca/VagaCerta/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/dev-matheusfranca/VagaCerta/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/dev-matheusfranca/VagaCerta/compare/v0.4.0...v0.5.0

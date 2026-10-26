@@ -18,6 +18,14 @@ export default defineConfig({
         target: 'http://localhost:8004',
         rewrite: (path) => path.replace(/^\/api\/analytics/, ''),
       },
+      '/api/webhooks': {
+        target: 'http://localhost:8008',
+        rewrite: (path) => path.replace(/^\/api\/webhooks/, ''),
+      },
+      '/api/audit': {
+        target: 'http://localhost:8007',
+        rewrite: (path) => path.replace(/^\/api\/audit/, ''),
+      },
       '/api/assistant': {
         target: 'http://localhost:8006',
         rewrite: (path) => path.replace(/^\/api\/assistant/, ''),

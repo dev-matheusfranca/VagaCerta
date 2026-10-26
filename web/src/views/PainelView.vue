@@ -14,8 +14,10 @@ import {
 import { computed, onMounted, ref, watch } from 'vue'
 import { api, ApiError, type Booking, type BusinessDetail } from '../api'
 import { keycloak } from '../auth'
+import BookingTrail from '../components/BookingTrail.vue'
 import PastStats from '../components/PastStats.vue'
 import UpcomingStats from '../components/UpcomingStats.vue'
+import WebhooksCard from '../components/WebhooksCard.vue'
 import { category, currency, initials, longDate, time } from '../format'
 
 const business = ref<BusinessDetail>()
@@ -24,6 +26,7 @@ const day = ref('')
 const notLinked = ref(false)
 const cancelling = ref('')
 const recording = ref('')
+const trailOf = ref<Booking>()
 const error = ref('')
 const now = Date.now()
 
@@ -249,7 +252,13 @@ async function cancel(booking: Booking) {
                 }}
               </span>
               <div class="min-w-0 flex-1">
-                <p class="truncate font-semibold">{{ booking.customer_name }}</p>
+                <button
+                  class="max-w-full truncate font-semibold hover:text-brand-700 hover:underline"
+                  :title="`Ver o histórico de ${booking.customer_name}`"
+                  @click="trailOf = booking"
+                >
+                  {{ booking.customer_name }}
+                </button>
                 <p class="truncate text-xs text-ink/50">
                   {{ services.get(booking.service_id)?.name }} · {{ booking.customer_email }}
                 </p>
@@ -310,6 +319,13 @@ async function cancel(booking: Booking) {
 
       <UpcomingStats :business-id="business.id" :timezone="business.timezone" />
       <PastStats :business-id="business.id" :timezone="business.timezone" />
+      <WebhooksCard :business-id="business.id" :timezone="business.timezone" />
+      <BookingTrail
+        v-if="trailOf"
+        :booking="trailOf"
+        :timezone="business.timezone"
+        @close="trailOf = undefined"
+      />
     </div>
   </div>
 

@@ -4,7 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
-images="catalog booking waitlist notification analytics mcp-server web keycloak gateway lgtm"
+images="catalog booking waitlist notification analytics audit webhooks mcp-server web keycloak gateway lgtm"
 options=()
 if [ -n "${WITH_ASSISTANT:-}" ]; then
   images="$images assistant"

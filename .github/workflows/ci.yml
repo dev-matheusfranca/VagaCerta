@@ -49,10 +49,10 @@ jobs:
       - uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy.sarif
-      - run: docker compose --profile ai build catalog booking waitlist notification analytics mcp-server assistant web
+      - run: docker compose --profile ai build catalog booking waitlist notification analytics audit webhooks mcp-server assistant web
       # Nas imagens que construímos, vulnerabilidade alta ou crítica com correção disponível quebra o build.
       - run: |
-          for service in catalog booking waitlist notification analytics mcp-server assistant web; do
+          for service in catalog booking waitlist notification analytics audit webhooks mcp-server assistant web; do
             trivy image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 vagacerta-$service:latest
           done
 
