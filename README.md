@@ -96,6 +96,10 @@ O projeto evolui em fases, até uma arquitetura completa orientada a eventos. Ve
 - Testes de contrato com Pact entre todos os serviços, inclusive nos eventos do Kafka.
 - Servidor MCP com as ferramentas de agendamento, usado pelo assistente e por qualquer cliente MCP.
 - Kubernetes com Helm e kind: o CI sobe o sistema inteiro num cluster e roda o teste de carga nele.
+- Resiliência: novas tentativas e circuit breaker entre serviços. O Booking continua respondendo com o
+  Catalog fora do ar, e os eventos esperam no outbox enquanto o Kafka está fora.
+- Segurança na esteira: gitleaks antes de cada commit, Trivy nas imagens, dependências e chart, e imagens
+  que rodam sem root.
 - Teste de carga no CI e documentação interativa (OpenAPI/Swagger) em todos os serviços.
 
 ## Telas
@@ -224,6 +228,10 @@ sequenceDiagram
   mesmas APIs do site. Ele não inventa horários e não passa por cima da regra de conflito do banco.
 - **O mesmo sistema no Compose e no Kubernetes.** As configurações viram imagens, e um chart Helm
   genérico descreve todos os serviços.
+- **Falhar bem.** Consultas entre serviços são repetidas e um circuit breaker para de chamar quem não
+  responde. Na falta de uma dependência, a resposta é um `503` claro ou um dado em cache, nunca um `500`.
+- **Segurança desde o commit.** Segredos são barrados antes do commit, e uma vulnerabilidade alta com
+  correção numa imagem própria quebra o build.
 
 Cada decisão está registrada numa ADR:
 
@@ -241,6 +249,8 @@ Cada decisão está registrada numa ADR:
 | [0010](docs/adr/0010-testes-de-contrato-com-pact.md) | Testes de contrato com Pact |
 | [0011](docs/adr/0011-assistente-com-llm-local-e-mcp.md) | Assistente com LLM local e servidor MCP |
 | [0012](docs/adr/0012-kubernetes-com-kind-e-helm.md) | Kubernetes com kind e Helm |
+| [0013](docs/adr/0013-resiliencia-entre-servicos.md) | Resiliência entre serviços |
+| [0014](docs/adr/0014-qualidade-e-seguranca-na-esteira.md) | Qualidade e segurança na esteira |
 
 ## Tecnologias
 
@@ -255,8 +265,8 @@ Cada decisão está registrada numa ADR:
 | Observabilidade | OpenTelemetry (instrumentação automática e manual), Grafana, Tempo, Prometheus e Loki (`grafana/otel-lgtm`) |
 | IA | Ollama (`qwen3:4b-instruct` por padrão), Model Context Protocol (SDK oficial em Python), atributos GenAI do OpenTelemetry |
 | Front-end | Vue 3, TypeScript, Vite, Tailwind CSS 4, Vue Router, ícones Lucide |
-| Testes | pytest, Testcontainers (PostgreSQL, Kafka, RabbitMQ), Pact, Hypothesis, import-linter, k6 |
-| Qualidade | ruff (lint e formatação), mypy (strict), vue-tsc |
+| Testes | pytest, Testcontainers (PostgreSQL, Kafka, RabbitMQ), Pact, Hypothesis, Toxiproxy, WireMock, import-linter, k6, pytest-cov |
+| Qualidade e segurança | ruff, mypy (strict), vue-tsc, pre-commit, gitleaks, Trivy, SonarCloud |
 | Infraestrutura | Docker, Docker Compose, Kubernetes (kind), Helm, nginx, Kafka UI, GitHub Actions |
 | Ferramentas | Workspace do uv (um lock file para todos os serviços Python) |
 
@@ -277,6 +287,7 @@ VagaCerta/
 │       ├── src/                # (em cada serviço) código do serviço
 │       └── tests/              # (em cada serviço) testes
 ├── libs/auth/                  # vagacerta-auth: validação dos tokens do Keycloak, usada pelos serviços
+├── libs/http/                  # vagacerta-http: novas tentativas e circuit breaker entre serviços
 ├── pacts/                      # contratos gerados pelos consumidores e verificados pelos provedores
 ├── deploy/
 │   ├── helm/vagacerta/         # chart Helm com todos os serviços
@@ -376,6 +387,10 @@ kubectl get pods
 
 Rodar o script de novo atualiza o cluster com as imagens novas. Para remover tudo:
 `kind delete cluster --name vagacerta`.
+
+No cluster, o assistente usa o Ollama da máquina em `http://host.docker.internal:11434`, endereço que
+funciona no Docker Desktop. No Docker do Linux, troque o endereço com
+`--set workloads.assistant.env.OLLAMA_URL=http://<ip-do-host>:11434`.
 
 ### Localmente, sem containers para os serviços
 
@@ -657,10 +672,10 @@ Conecte em `http://localhost:8080/mcp` com o transporte Streamable HTTP.
 ## Testes
 
 ```bash
-uv run pytest            # 90 testes (os de integração sobem containers com Docker)
+uv run pytest --cov      # 99 testes, com cobertura (os de integração sobem containers com Docker)
 uv run lint-imports      # regras de arquitetura
-uv run mypy libs/auth/src services/*/src
-uv run ruff check && uv run ruff format --check
+uv run mypy libs/*/src services/*/src
+uv run pre-commit run --all-files               # ruff, checagens de arquivos e gitleaks
 npm --prefix web run build                      # checa os tipos do front-end
 docker compose --profile load run --rm k6       # teste de carga contra a stack no ar
 helm lint deploy/helm/vagacerta                 # valida o chart
@@ -671,7 +686,7 @@ helm lint deploy/helm/vagacerta                 # valida o chart
 | Unitário | Regras de disponibilidade e de lembrete; conteúdo dos e-mails, fuso horário e escape de HTML |
 | Baseado em propriedades | O Hypothesis gera agendas aleatórias: nenhum horário oferecido sobrepõe outro ou sai do expediente |
 | Integração | API com PostgreSQL real via Testcontainers, usando as migrações de verdade |
-| Concorrência | 10 requisições simultâneas para o mesmo horário: exatamente um `201` e nove `409` |
+| Concorrência | 40 requisições simultâneas para o mesmo horário: exatamente um `201` e 39 `409`, sem deadlock no banco |
 | Outbox | O evento só existe se o agendamento foi gravado; o relay publica cada um uma vez, em ordem, num Kafka real |
 | Mensageria | Num RabbitMQ real: e-mails entregues, repetidos com backoff e enviados à dead-letter após a última tentativa |
 | Idempotência | Evento reentregue não gera segundo e-mail nem segunda oferta; lembrete sai uma vez só |
@@ -682,6 +697,8 @@ helm lint deploy/helm/vagacerta                 # valida o chart
 | Ferramentas MCP | Num cliente MCP em memória: horários no fuso do estabelecimento e erros esperados como mensagem para o modelo |
 | Agente | Com um modelo falso: o resultado das ferramentas volta para o modelo, o loop para após 8 passos e um modelo fora do ar vira `503` |
 | Kubernetes | O CI sobe tudo num cluster kind com o chart Helm e roda o teste de carga contra ele |
+| Resiliência | O Toxiproxy injeta latência e queda entre o Booking e um Catalog simulado pelo WireMock: o circuito abre e o cache segura a disponibilidade. Com o Kafka pausado, o relay espera e publica tudo, em ordem, quando ele volta |
+| Segurança | Trivy nas imagens próprias (falha com vulnerabilidade alta ou crítica corrigível), nas dependências e na configuração; gitleaks contra segredos |
 | Segurança | Tokens RS256 assinados no teste: sem token `401`, papel errado `403`, token forjado `401`, dono de outro estabelecimento `403` |
 | Arquitetura | Os módulos de domínio não dependem de frameworks nem de brokers |
 | Carga (k6) | 50 pessoas disputam o mesmo horário: só uma consegue; a disponibilidade mantém p95 abaixo de 500 ms |
@@ -705,8 +722,9 @@ geram os eventos com as mesmas funções que gravam o outbox. Remover ou renomea
 consumidor quebra a suíte do provedor.
 
 A cada push na `main` e na `develop`, e em todo pull request, o GitHub Actions roda a suíte, confere se os
-contratos versionados estão em dia e faz o build do front. Dois jobs de ponta a ponta sobem o sistema
-inteiro, um com Docker Compose e outro num cluster kind com o chart Helm, e executam o k6.
+contratos versionados estão em dia e faz o build do front. Um job de segurança roda o Trivy, com os
+achados na aba *Security* do GitHub, e a cobertura vai para o SonarCloud. Dois jobs de ponta a ponta sobem
+o sistema inteiro, um com Docker Compose e outro num cluster kind com o chart Helm, e executam o k6.
 
 ## Desempenho
 
@@ -736,6 +754,8 @@ no Docker Desktop de uma máquina de desenvolvimento.
       Pact; serviço de Analytics com CQRS
 - [x] **Fase 5** — Kubernetes com kind e Helm; agendamento em linguagem natural com LLM local (Ollama) e
       servidor MCP
+- [ ] **Fase 6** — qualidade e segurança na esteira e resiliência entre serviços (entregues na v0.6.0);
+      comparecimento, faltas e ocupação no Analytics; trilha de auditoria e webhooks de saída
 
 O que mudou em cada versão está no [CHANGELOG](CHANGELOG.md).
 
@@ -775,7 +795,8 @@ Os commits seguem o [Conventional Commits](https://www.conventionalcommits.org/p
 Exemplos do histórico: `feat(waitlist): add the waitlist service with an offer saga`,
 `perf(booking): cache catalog lookups for 30 seconds`.
 
-Antes de abrir um pull request, confira se os [comandos de teste](#testes) passam.
+Para rodar as checagens a cada commit, instale os hooks uma vez com `uv run pre-commit install`. Antes de
+abrir um pull request, confira se os [comandos de teste](#testes) passam.
 
 ## Licença
 

@@ -5,11 +5,12 @@ from starlette.responses import PlainTextResponse
 
 from mcp_server.config import BOOKING_URL, CATALOG_URL, WAITLIST_URL, WEB_URL
 from mcp_server.server import create_server
+from vagacerta_http import ResilientTransport
 
 server = create_server(
-    httpx.AsyncClient(base_url=CATALOG_URL, timeout=5),
-    httpx.AsyncClient(base_url=BOOKING_URL, timeout=5),
-    httpx.AsyncClient(base_url=WAITLIST_URL, timeout=5),
+    httpx.AsyncClient(base_url=CATALOG_URL, timeout=2, transport=ResilientTransport()),
+    httpx.AsyncClient(base_url=BOOKING_URL, timeout=2, transport=ResilientTransport()),
+    httpx.AsyncClient(base_url=WAITLIST_URL, timeout=2, transport=ResilientTransport()),
     WEB_URL,
 )
 

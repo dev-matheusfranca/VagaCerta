@@ -50,11 +50,17 @@ class CatalogClient:
         expires_at, business = self._cache.get(business_id, (0.0, None))
         if monotonic() < expires_at:
             return business
-        response = await self._http.get(f"/businesses/{business_id}")
-        if response.status_code == 404:
-            business = None
-        else:
-            response.raise_for_status()
-            business = Business.model_validate_json(response.content)
+        try:
+            response = await self._http.get(f"/businesses/{business_id}")
+            if response.status_code == 404:
+                business = None
+            else:
+                response.raise_for_status()
+                business = Business.model_validate_json(response.content)
+        except httpx.HTTPError:
+            # Com o catálogo fora do ar, um dado vencido é melhor do que nenhum.
+            if business_id in self._cache:
+                return self._cache[business_id][1]
+            raise
         self._cache[business_id] = (monotonic() + self.CACHE_SECONDS, business)
         return business

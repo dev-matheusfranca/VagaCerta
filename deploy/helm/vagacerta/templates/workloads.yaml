@@ -39,6 +39,9 @@ spec:
         - name: {{ $name }}
           image: {{ $workload.image }}
           imagePullPolicy: IfNotPresent
+          {{- with $workload.securityContext }}
+          securityContext: {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- with $workload.command }}
           command: {{ toJson . }}
           {{- end }}

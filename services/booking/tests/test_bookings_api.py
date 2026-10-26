@@ -117,11 +117,12 @@ async def test_only_one_of_many_simultaneous_requests_gets_the_slot(client):
     responses = await asyncio.gather(
         *(
             client.post("/bookings", json=booking(10, customer_name=f"Cliente {i}"))
-            for i in range(10)
-        )
+            for i in range(40)
+        ),
+        return_exceptions=True,
     )
 
-    assert sorted(r.status_code for r in responses) == [201] + [409] * 9
+    assert sorted(getattr(r, "status_code", 500) for r in responses) == [201] + [409] * 39
 
 
 async def test_rejects_time_outside_working_hours(client):
