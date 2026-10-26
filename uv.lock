@@ -16,6 +16,7 @@ members = [
     "mcp-server",
     "notification",
     "vagacerta-auth",
+    "vagacerta-http",
     "waitlist",
 ]
 
@@ -374,6 +375,7 @@ dependencies = [
     { name = "tzdata" },
     { name = "uvicorn" },
     { name = "vagacerta-auth" },
+    { name = "vagacerta-http" },
 ]
 
 [package.metadata]
@@ -395,6 +397,7 @@ requires-dist = [
     { name = "tzdata", specifier = ">=2026.5" },
     { name = "uvicorn", specifier = ">=0.54.0" },
     { name = "vagacerta-auth", editable = "libs/auth" },
+    { name = "vagacerta-http", editable = "libs/http" },
 ]
 
 [[package]]
@@ -1479,6 +1482,7 @@ dependencies = [
     { name = "opentelemetry-instrumentation-logging" },
     { name = "opentelemetry-instrumentation-starlette" },
     { name = "uvicorn" },
+    { name = "vagacerta-http" },
 ]
 
 [package.metadata]
@@ -1491,6 +1495,7 @@ requires-dist = [
     { name = "opentelemetry-instrumentation-logging", specifier = ">=0.66b1" },
     { name = "opentelemetry-instrumentation-starlette", specifier = ">=0.66b1" },
     { name = "uvicorn", specifier = ">=0.54.0" },
+    { name = "vagacerta-http", editable = "libs/http" },
 ]
 
 [[package]]
@@ -2832,6 +2837,17 @@ requires-dist = [
 ]
 
 [[package]]
+name = "vagacerta-http"
+version = "0.1.0"
+source = { editable = "libs/http" }
+dependencies = [
+    { name = "httpx" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "httpx", specifier = ">=0.28.1" }]
+
+[[package]]
 name = "virtualenv"
 version = "21.14.13"
 source = { registry = "https://pypi.org/simple" }
@@ -2868,6 +2884,7 @@ dependencies = [
     { name = "sqlalchemy", extra = ["asyncio"] },
     { name = "tzdata" },
     { name = "uvicorn" },
+    { name = "vagacerta-http" },
 ]
 
 [package.metadata]
@@ -2888,6 +2905,7 @@ requires-dist = [
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.1.6" },
     { name = "tzdata", specifier = ">=2026.5" },
     { name = "uvicorn", specifier = ">=0.54.0" },
+    { name = "vagacerta-http", editable = "libs/http" },
 ]
 
 [[package]]

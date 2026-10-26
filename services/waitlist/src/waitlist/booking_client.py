@@ -6,6 +6,7 @@ from uuid import UUID
 import httpx
 from pydantic import AwareDatetime, BaseModel
 
+from vagacerta_http import ResilientTransport
 from waitlist.config import BOOKING_URL, CLIENT_ID, CLIENT_SECRET, KEYCLOAK_TOKEN_URL
 from waitlist.models import Entry
 
@@ -85,4 +86,7 @@ class BookingClient:
 
 def booking_client() -> BookingClient:
     auth = ClientCredentials(KEYCLOAK_TOKEN_URL, CLIENT_ID, CLIENT_SECRET)
-    return BookingClient(httpx.AsyncClient(base_url=BOOKING_URL, timeout=5, auth=auth))
+    transport = ResilientTransport()
+    return BookingClient(
+        httpx.AsyncClient(base_url=BOOKING_URL, timeout=2, auth=auth, transport=transport)
+    )
