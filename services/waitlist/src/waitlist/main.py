@@ -1,4 +1,6 @@
-from fastapi import FastAPI
+import httpx
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from waitlist.api import router
@@ -15,6 +17,13 @@ def create_app(database_url: str, catalog: CatalogClient, booking: BookingClient
     app.state.catalog = catalog
     app.state.booking = booking
     app.include_router(router)
+
+    @app.exception_handler(httpx.HTTPError)
+    async def dependency_unavailable(request: Request, error: httpx.HTTPError) -> JSONResponse:
+        return JSONResponse(
+            {"detail": "Serviço indisponível no momento, tente de novo"}, status_code=503
+        )
+
     return app
 
 

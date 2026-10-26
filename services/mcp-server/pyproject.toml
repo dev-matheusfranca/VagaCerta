@@ -12,8 +12,12 @@ dependencies = [
     "opentelemetry-instrumentation-logging>=0.66b1",
     "opentelemetry-instrumentation-starlette>=0.66b1",
     "uvicorn>=0.54.0",
+    "vagacerta-http",
 ]
 
 [build-system]
 requires = ["uv_build>=0.13,<0.14"]
 build-backend = "uv_build"
+
+[tool.uv.sources]
+vagacerta-http = { workspace = true }

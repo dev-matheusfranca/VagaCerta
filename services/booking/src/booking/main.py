@@ -1,12 +1,14 @@
 import os
 
 import httpx
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from booking.api import router
 from booking.catalog_client import CatalogClient
 from vagacerta_auth import TokenVerifier, keycloak_verifier
+from vagacerta_http import ResilientTransport
 
 DATABASE_URL = os.environ.get(
     "DATABASE_URL", "postgresql+asyncpg://vagacerta:vagacerta@localhost:5434/booking"
@@ -26,11 +28,20 @@ def create_app(database_url: str, catalog: CatalogClient, tokens: TokenVerifier)
     app.state.catalog = catalog
     app.state.tokens = tokens
     app.include_router(router)
+
+    @app.exception_handler(httpx.HTTPError)
+    async def dependency_unavailable(request: Request, error: httpx.HTTPError) -> JSONResponse:
+        return JSONResponse(
+            {"detail": "Serviço indisponível no momento, tente de novo"}, status_code=503
+        )
+
     return app
 
 
 app = create_app(
     DATABASE_URL,
-    CatalogClient(httpx.AsyncClient(base_url=CATALOG_URL, timeout=5)),
+    CatalogClient(
+        httpx.AsyncClient(base_url=CATALOG_URL, timeout=2, transport=ResilientTransport())
+    ),
     keycloak_verifier(KEYCLOAK_ISSUER, KEYCLOAK_JWKS_URL),
 )

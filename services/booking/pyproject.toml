@@ -20,6 +20,7 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.1.6",
     "tzdata>=2026.5",
     "uvicorn>=0.54.0",
+    "vagacerta-http",
     "vagacerta-auth",
 ]
 
@@ -28,4 +29,5 @@ requires = ["uv_build>=0.13,<0.14"]
 build-backend = "uv_build"
 
 [tool.uv.sources]
+vagacerta-http = { workspace = true }
 vagacerta-auth = { workspace = true }

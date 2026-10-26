@@ -19,6 +19,7 @@ known-first-party = [
     "mcp_server",
     "notification",
     "vagacerta_auth",
+    "vagacerta_http",
     "waitlist",
 ]
 
@@ -31,7 +32,7 @@ module = ["aiokafka.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
-testpaths = ["services"]
+testpaths = ["services", "libs"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 asyncio_default_test_loop_scope = "session"
@@ -69,6 +70,7 @@ source_pkgs = [
     "mcp_server",
     "notification",
     "vagacerta_auth",
+    "vagacerta_http",
     "waitlist",
 ]
 relative_files = true
