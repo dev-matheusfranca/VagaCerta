@@ -199,6 +199,45 @@ services:
       audit: { condition: service_healthy }
       kafka: { condition: service_healthy }
 
+  webhooks-db:
+    <<: *postgres
+    environment:
+      POSTGRES_USER: vagacerta
+      POSTGRES_PASSWORD: vagacerta
+      POSTGRES_DB: webhooks
+    ports: ["5439:5432"]
+
+  webhooks:
+    build: &webhooks-build
+      context: .
+      dockerfile: services/Dockerfile
+      args: { SERVICE: webhooks }
+    environment: &webhooks-env
+      <<: *otel
+      OTEL_SERVICE_NAME: webhooks
+      DATABASE_URL: postgresql+asyncpg://vagacerta:vagacerta@webhooks-db:5432/webhooks
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      KEYCLOAK_JWKS_URL: *jwks
+      # Demonstração local: deixa entregar ao n8n, que está na rede do Docker.
+      ALLOW_PRIVATE_TARGETS: "true"
+    ports: ["8008:8000"]
+    healthcheck: *api-healthcheck
+    depends_on:
+      webhooks-db: { condition: service_healthy }
+
+  webhooks-worker:
+    build: *webhooks-build
+    command: opentelemetry-instrument python -m webhooks.worker
+    restart: on-failure
+    environment:
+      <<: *webhooks-env
+      OTEL_SERVICE_NAME: webhooks-worker
+    depends_on:
+      webhooks: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+
   keycloak:
     build: keycloak
     command: start-dev --import-realm
@@ -260,6 +299,7 @@ services:
   mailpit:
     image: axllent/mailpit:v1.28
     ports: ["8025:8025", "1025:1025"]
+
 
   kafka:
     image: apache/kafka:4.2.0
@@ -373,7 +413,7 @@ services:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
       interval: 3s
       retries: 20
-    depends_on: [web, catalog, booking, waitlist, analytics, audit, mcp-server, keycloak]
+    depends_on: [web, catalog, booking, waitlist, analytics, audit, webhooks, mcp-server, keycloak]
 
   k6:
     image: grafana/k6:1.3.0

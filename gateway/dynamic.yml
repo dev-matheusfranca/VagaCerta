@@ -24,6 +24,10 @@ http:
       rule: PathPrefix(`/api/analytics`)
       service: analytics
       middlewares: [strip-api, security-headers]
+    webhooks:
+      rule: PathPrefix(`/api/webhooks`)
+      service: webhooks
+      middlewares: [strip-api, security-headers]
     audit:
       rule: PathPrefix(`/api/audit`)
       service: audit
@@ -74,6 +78,9 @@ http:
     analytics:
       loadBalancer:
         servers: [{ url: http://analytics:8000 }]
+    webhooks:
+      loadBalancer:
+        servers: [{ url: http://webhooks:8000 }]
     audit:
       loadBalancer:
         servers: [{ url: http://audit:8000 }]
