@@ -5,6 +5,30 @@ Todas as mudanças relevantes do projeto ficam registradas neste arquivo.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto usa
 [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.7.0] - 2026-10-26
+
+### Adicionado
+
+- Registro de comparecimento: depois do horário, o dono marca no painel se a pessoa compareceu ou
+  faltou, e o Booking publica `booking.completed` ou `booking.no_show`.
+- O Analytics mede comparecimentos, faltas, minutos agendados e capacidade de cada dia, com o expediente
+  lido do Catalog, e os horários de pico por dia da semana e hora.
+- Card "Últimos 30 dias" no painel, com atendimentos, taxa de faltas, ocupação média e mapa de calor dos
+  horários mais procurados; o card dos próximos 14 dias mostra a ocupação da agenda.
+- A clínica de demonstração sobe com 30 dias de atendimentos já registrados.
+- Contratos Pact dos eventos de comparecimento e da leitura do expediente pelo Analytics.
+- ADR 0015 (comparecimento, faltas e ocupação).
+
+### Alterado
+
+- A API de números do Analytics devolve todos os dias do período, inclusive os vazios.
+- A agenda do dia mostra os atendimentos que já aconteceram, com o desfecho registrado.
+
+### Corrigido
+
+- O RabbitMQ podia não subir no Docker Compose: o healthcheck, rodando como root, criava o cookie do
+  Erlang antes do servidor.
+
 ## [0.6.0] - 2026-10-26
 
 ### Adicionado
@@ -155,6 +179,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 - Testes unitários, baseados em propriedades, de integração, de concorrência e de arquitetura.
 - Docker Compose, pipeline no GitHub Actions, README e ADRs 0001 e 0002.
 
+[0.7.0]: https://github.com/dev-matheusfranca/VagaCerta/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/dev-matheusfranca/VagaCerta/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/dev-matheusfranca/VagaCerta/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/dev-matheusfranca/VagaCerta/compare/v0.3.0...v0.4.0

@@ -82,8 +82,10 @@ O projeto evolui em fases, até uma arquitetura completa orientada a eventos. Ve
 
 - **Painel com login** (Keycloak): agenda do dia por profissional, totais, reservas da lista de espera e
   cancelamento com um clique, que já repassa a vaga para a fila.
-- **Próximos 14 dias:** agendamentos confirmados, cancelamentos, receita prevista e quanto a lista de
-  espera recuperou, dia a dia.
+- **Próximos 14 dias:** agendamentos confirmados, cancelamentos, receita prevista, ocupação da agenda e
+  quanto a lista de espera recuperou, dia a dia.
+- **Comparecimento:** depois do horário, o dono marca se a pessoa veio ou faltou. O painel mostra os
+  últimos 30 dias: atendimentos, taxa de faltas, ocupação média e um mapa dos horários mais procurados.
 
 **Por baixo**
 
@@ -114,7 +116,11 @@ O projeto evolui em fases, até uma arquitetura completa orientada a eventos. Ve
 
 | Painel: próximos 14 dias (Analytics) |
 |---|
-| <img src="docs/screenshots/painel-analytics.png" alt="Painel com agendamentos, cancelamentos, receita e recuperação pela fila nos próximos 14 dias" /> |
+| <img src="docs/screenshots/painel-analytics.png" alt="Painel com agendamentos, cancelamentos, receita, ocupação e recuperação pela fila nos próximos 14 dias" /> |
+
+| Painel: últimos 30 dias (faltas, ocupação e horários de pico) |
+|---|
+| <img src="docs/screenshots/painel-30-dias.png" alt="Painel com atendimentos, faltas, ocupação média e mapa de calor dos horários mais procurados" /> |
 
 | E-mail de confirmação | E-mail da lista de espera | Login (Keycloak com tema próprio) |
 |---|---|---|
@@ -251,6 +257,7 @@ Cada decisão está registrada numa ADR:
 | [0012](docs/adr/0012-kubernetes-com-kind-e-helm.md) | Kubernetes com kind e Helm |
 | [0013](docs/adr/0013-resiliencia-entre-servicos.md) | Resiliência entre serviços |
 | [0014](docs/adr/0014-qualidade-e-seguranca-na-esteira.md) | Qualidade e segurança na esteira |
+| [0015](docs/adr/0015-comparecimento-faltas-e-ocupacao.md) | Comparecimento, faltas e ocupação |
 
 ## Tecnologias
 
@@ -500,6 +507,7 @@ A documentação interativa completa fica em `/docs` em cada serviço.
 | `POST` | `/bookings` | público | Agenda um horário |
 | `GET` | `/bookings/{id}` | público | Detalhes do agendamento |
 | `POST` | `/bookings/{id}/cancel` | público | Cancela; o horário volta a ficar livre |
+| `POST` | `/bookings/{id}/outcome` | `owner` do estabelecimento | Registra, depois do horário, se a pessoa compareceu ou faltou |
 | `GET` | `/businesses/{id}/agenda?date=` | `owner` do estabelecimento | Agenda do dia, com reservas da lista de espera |
 | `POST` | `/holds` | `booking-holds` | Reserva temporária de um horário (saga) |
 | `POST` | `/bookings/{id}/confirm` | `booking-holds` | Transforma a reserva em agendamento |
@@ -517,7 +525,8 @@ A documentação interativa completa fica em `/docs` em cada serviço.
 
 | Método | Endpoint | Acesso | Descrição |
 |---|---|---|---|
-| `GET` | `/businesses/{id}/stats?from=&to=` | `owner` do estabelecimento | Agendamentos, cancelamentos, receita e ofertas da lista de espera por dia |
+| `GET` | `/businesses/{id}/stats?from=&to=` | `owner` do estabelecimento | Por dia: agendamentos, cancelamentos, receita, comparecimentos, faltas, minutos agendados, capacidade e ofertas da lista de espera |
+| `GET` | `/businesses/{id}/peak-hours` | `owner` do estabelecimento | Agendamentos por dia da semana e hora |
 
 ### Assistant — `:8006` · `/api/assistant`
 
@@ -575,6 +584,8 @@ curl -s http://localhost:8080/auth/realms/vagacerta/protocol/openid-connect/toke
 |---|---|---|---|
 | `booking.events` | `booking.created` | Um agendamento é confirmado | Notification, Analytics |
 | `booking.events` | `booking.cancelled` | Um agendamento confirmado é cancelado | Waitlist worker, Notification, Analytics |
+| `booking.events` | `booking.completed` | O dono registra que a pessoa compareceu | Analytics |
+| `booking.events` | `booking.no_show` | O dono registra que a pessoa faltou | Analytics |
 | `waitlist.events` | `waitlist.offer_created` | Um horário é reservado para alguém da fila | Notification, Analytics |
 | `waitlist.events` | `waitlist.offer_claimed` | A pessoa da fila confirma a oferta | Analytics |
 | `waitlist.events` | `waitlist.offer_expired` | A oferta expira sem confirmação | Analytics |
@@ -672,7 +683,7 @@ Conecte em `http://localhost:8080/mcp` com o transporte Streamable HTTP.
 ## Testes
 
 ```bash
-uv run pytest --cov      # 99 testes, com cobertura (os de integração sobem containers com Docker)
+uv run pytest --cov      # 106 testes, com cobertura (os de integração sobem containers com Docker)
 uv run lint-imports      # regras de arquitetura
 uv run mypy libs/*/src services/*/src
 uv run pre-commit run --all-files               # ruff, checagens de arquivos e gitleaks
@@ -713,7 +724,7 @@ Os contratos ficam em [`pacts/`](pacts), um arquivo por par consumidor e provedo
 | Waitlist | Catalog | Nomes e preços do estabelecimento, dos profissionais e dos serviços |
 | Waitlist | Booking | Reserva de horário livre e ocupado; confirmação e liberação, inclusive de reserva vencida; evento `booking.cancelled` |
 | Notification | Booking, Waitlist | `booking.created`, `booking.cancelled` e `waitlist.offer_created` |
-| Analytics | Booking, Waitlist | Eventos de agendamento e os três eventos de oferta |
+| Analytics | Booking, Waitlist, Catalog | Eventos de agendamento, comparecimento e oferta; expediente para calcular a ocupação |
 | MCP server | Catalog, Booking, Waitlist | Estabelecimentos, horários livres, agendamento, cancelamento e entrada na fila |
 
 Os testes dos consumidores rodam os clientes reais contra o mock do Pact e regravam os contratos. Os dos
@@ -754,8 +765,8 @@ no Docker Desktop de uma máquina de desenvolvimento.
       Pact; serviço de Analytics com CQRS
 - [x] **Fase 5** — Kubernetes com kind e Helm; agendamento em linguagem natural com LLM local (Ollama) e
       servidor MCP
-- [ ] **Fase 6** — qualidade e segurança na esteira e resiliência entre serviços (entregues na v0.6.0);
-      comparecimento, faltas e ocupação no Analytics; trilha de auditoria e webhooks de saída
+- [ ] **Fase 6** — qualidade e segurança na esteira e resiliência entre serviços (v0.6.0);
+      comparecimento, faltas e ocupação no Analytics (v0.7.0); trilha de auditoria e webhooks de saída
 
 O que mudou em cada versão está no [CHANGELOG](CHANGELOG.md).
 

@@ -22,6 +22,20 @@ class DailyStats(Base):
     offers_claimed: Mapped[int] = mapped_column(default=0, server_default="0")
     offers_expired: Mapped[int] = mapped_column(default=0, server_default="0")
     recovered_revenue_cents: Mapped[int] = mapped_column(default=0, server_default="0")
+    completed: Mapped[int] = mapped_column(default=0, server_default="0")
+    no_shows: Mapped[int] = mapped_column(default=0, server_default="0")
+    booked_minutes: Mapped[int] = mapped_column(default=0, server_default="0")
+
+
+class HourlyStats(Base):
+    """Read model: agendamentos por dia da semana e hora, no horário local, para achar o pico."""
+
+    __tablename__ = "hourly_stats"
+
+    business_id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    weekday: Mapped[int] = mapped_column(primary_key=True)
+    hour: Mapped[int] = mapped_column(primary_key=True)
+    bookings: Mapped[int] = mapped_column(default=0, server_default="0")
 
 
 class Booking(Base):
@@ -33,6 +47,9 @@ class Booking(Base):
     business_id: Mapped[uuid.UUID]
     day: Mapped[date]
     price_cents: Mapped[int]
+    minutes: Mapped[int] = mapped_column(server_default="0")
+    weekday: Mapped[int] = mapped_column(server_default="0")
+    hour: Mapped[int] = mapped_column(server_default="0")
 
 
 class ProcessedEvent(Base):

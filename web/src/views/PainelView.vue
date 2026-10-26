@@ -7,11 +7,14 @@ import {
   ChevronRight,
   LoaderCircle,
   LogOut,
+  UserCheck,
+  UserX,
   Wallet,
 } from 'lucide-vue-next'
 import { computed, onMounted, ref, watch } from 'vue'
 import { api, ApiError, type Booking, type BusinessDetail } from '../api'
 import { keycloak } from '../auth'
+import PastStats from '../components/PastStats.vue'
 import UpcomingStats from '../components/UpcomingStats.vue'
 import { category, currency, initials, longDate, time } from '../format'
 
@@ -20,7 +23,9 @@ const bookings = ref<Booking[]>()
 const day = ref('')
 const notLinked = ref(false)
 const cancelling = ref('')
+const recording = ref('')
 const error = ref('')
+const now = Date.now()
 
 const ownerName = keycloak.tokenParsed?.given_name
 
@@ -35,7 +40,11 @@ const columns = computed(() =>
     bookings: bookings.value?.filter((b) => b.professional_id === professional.id) ?? [],
   })),
 )
-const confirmed = computed(() => bookings.value?.filter((b) => b.status === 'confirmed') ?? [])
+// Atendimentos já feitos continuam na agenda do dia, com o comparecimento registrado.
+const confirmed = computed(
+  () => bookings.value?.filter((b) => ['confirmed', 'completed', 'no_show'].includes(b.status)) ?? [],
+)
+const started = (booking: Booking) => new Date(booking.starts_at).getTime() <= now
 const stats = computed(() => [
   { icon: CalendarCheck, label: 'Agendamentos', value: String(confirmed.value.length) },
   {
@@ -79,6 +88,19 @@ onMounted(async () => {
     new Date(),
   )
 })
+
+async function record(booking: Booking, outcome: 'completed' | 'no_show') {
+  recording.value = booking.id
+  error.value = ''
+  try {
+    await api.recordOutcome(booking.id, outcome)
+    await loadAgenda()
+  } catch (e) {
+    error.value = e instanceof ApiError ? e.message : 'Não foi possível registrar'
+  } finally {
+    recording.value = ''
+  }
+}
 
 async function cancel(booking: Booking) {
   if (!confirm(`Cancelar o horário de ${booking.customer_name}? A vaga vai para a lista de espera.`))
@@ -238,6 +260,39 @@ async function cancel(booking: Booking) {
               >
                 Oferta da fila
               </span>
+              <span
+                v-else-if="booking.status === 'completed'"
+                class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-bold text-brand-800"
+              >
+                Atendido
+              </span>
+              <span
+                v-else-if="booking.status === 'no_show'"
+                class="rounded-full bg-rose-100 px-2.5 py-1 text-xs font-bold text-rose-700"
+              >
+                Faltou
+              </span>
+              <div v-else-if="started(booking)" class="flex shrink-0 gap-1">
+                <LoaderCircle v-if="recording === booking.id" class="m-2.5 size-4 animate-spin text-ink/40" />
+                <template v-else>
+                  <button
+                    class="grid size-9 place-items-center rounded-xl text-ink/40 transition hover:bg-brand-50 hover:text-brand-700"
+                    :aria-label="`${booking.customer_name} compareceu`"
+                    title="Compareceu"
+                    @click="record(booking, 'completed')"
+                  >
+                    <UserCheck class="size-4" />
+                  </button>
+                  <button
+                    class="grid size-9 place-items-center rounded-xl text-ink/40 transition hover:bg-rose-50 hover:text-rose-600"
+                    :aria-label="`${booking.customer_name} faltou`"
+                    title="Faltou"
+                    @click="record(booking, 'no_show')"
+                  >
+                    <UserX class="size-4" />
+                  </button>
+                </template>
+              </div>
               <button
                 v-else
                 :disabled="cancelling === booking.id"
@@ -254,6 +309,7 @@ async function cancel(booking: Booking) {
       </div>
 
       <UpcomingStats :business-id="business.id" :timezone="business.timezone" />
+      <PastStats :business-id="business.id" :timezone="business.timezone" />
     </div>
   </div>
 

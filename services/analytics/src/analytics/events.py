@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Annotated, Literal
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -21,6 +21,15 @@ class Slot(BaseModel):
 
 class BookedSlot(Slot):
     booking_id: UUID
+    ends_at: AwareDatetime
+
+    @property
+    def minutes(self) -> int:
+        return int((self.ends_at - self.starts_at).total_seconds()) // 60
+
+    @property
+    def local_start(self) -> datetime:
+        return self.starts_at.astimezone(ZoneInfo(self.timezone))
 
 
 class BookingRef(BaseModel):
@@ -39,11 +48,17 @@ class BookingCancelled(BaseModel):
     data: BookingRef
 
 
+class BookingOutcome(BaseModel):
+    event_id: UUID
+    type: Literal["booking.completed", "booking.no_show"]
+    data: BookingRef
+
+
 class OfferEvent(BaseModel):
     event_id: UUID
     type: Literal["waitlist.offer_created", "waitlist.offer_claimed", "waitlist.offer_expired"]
     data: Slot
 
 
-Event = BookingCreated | BookingCancelled | OfferEvent
+Event = BookingCreated | BookingCancelled | BookingOutcome | OfferEvent
 event_adapter: TypeAdapter[Event] = TypeAdapter(Annotated[Event, Field(discriminator="type")])

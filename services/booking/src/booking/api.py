@@ -57,6 +57,12 @@ async def get_booking_or_404(
     return booking
 
 
+def check_owner(claims: Claims, business_id: UUID) -> None:
+    # Cada dono pertence, no Keycloak, ao grupo com o id do seu estabelecimento.
+    if str(business_id) not in claims.get("businesses", []):
+        raise HTTPException(403, "Você não tem acesso a este estabelecimento")
+
+
 def occupies_slot(now: datetime) -> ColumnElement[bool]:
     return or_(
         models.Booking.status == "confirmed",
@@ -219,13 +225,30 @@ async def cancel_booking(booking_id: UUID, session: Session) -> models.Booking:
     return booking
 
 
+@router.post("/bookings/{booking_id}/outcome", response_model=schemas.Booking)
+async def record_outcome(
+    booking_id: UUID, data: schemas.OutcomeIn, session: Session, claims: Owner
+) -> models.Booking:
+    booking = await get_booking_or_404(session, booking_id, with_for_update=True)
+    check_owner(claims, booking.business_id)
+    if booking.status == data.outcome:
+        return booking
+    if booking.status != "confirmed":
+        raise HTTPException(409, "Só agendamentos confirmados recebem comparecimento ou falta")
+    if booking.starts_at > datetime.now(UTC):
+        raise HTTPException(409, "O atendimento ainda não começou")
+    booking.status = data.outcome
+    session.add(events.booking_outcome(booking))
+    await session.commit()
+    BOOKINGS.add(1, {"event": data.outcome})
+    return booking
+
+
 @router.get("/businesses/{business_id}/agenda", response_model=list[schemas.Booking])
 async def get_agenda(
     business_id: UUID, date: date, session: Session, catalog: Catalog, claims: Owner
 ) -> Sequence[models.Booking]:
-    # Cada dono pertence, no Keycloak, ao grupo com o id do seu estabelecimento.
-    if str(business_id) not in claims.get("businesses", []):
-        raise HTTPException(403, "Você não tem acesso a este estabelecimento")
+    check_owner(claims, business_id)
     business = await catalog.get_business(business_id)
     if business is None:
         raise HTTPException(404, "Estabelecimento não encontrado")
@@ -234,7 +257,10 @@ async def get_agenda(
         select(models.Booking)
         .where(
             models.Booking.business_id == business_id,
-            occupies_slot(datetime.now(UTC)),
+            or_(
+                occupies_slot(datetime.now(UTC)),
+                models.Booking.status.in_(("completed", "no_show")),
+            ),
             models.Booking.starts_at >= day_start,
             models.Booking.starts_at < day_start + timedelta(days=1),
         )

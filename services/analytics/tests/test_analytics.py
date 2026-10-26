@@ -11,7 +11,15 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 from testcontainers.community.postgres import PostgresContainer
 
-from analytics.events import BookedSlot, BookingCancelled, BookingCreated, BookingRef, OfferEvent
+from analytics.catalog_client import Schedule
+from analytics.events import (
+    BookedSlot,
+    BookingCancelled,
+    BookingCreated,
+    BookingOutcome,
+    BookingRef,
+    OfferEvent,
+)
 from analytics.main import create_app
 from analytics.projections import apply
 from vagacerta_auth import AUDIENCE, TokenVerifier
@@ -21,6 +29,17 @@ KEY = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 BUSINESS = uuid4()
 DAY = date(2030, 1, 9)
 NINE_AM = datetime(2030, 1, 9, 12, tzinfo=UTC)
+# Quarta-feira, das 9h às 12h: 180 minutos de expediente.
+SCHEDULE = Schedule.model_validate(
+    {"professionals": [{"working_hours": [{"weekday": 2, "start": "09:00", "end": "12:00"}]}]}
+)
+
+
+class FakeCatalog:
+    available = True
+
+    async def schedule(self, business_id):
+        return SCHEDULE if self.available else None
 
 
 def token(*businesses: str) -> dict[str, str]:
@@ -41,7 +60,7 @@ def app():
         config = Config(str(Path(__file__).parents[1] / "alembic.ini"))
         config.set_main_option("sqlalchemy.url", url)
         command.upgrade(config, "head")
-        yield create_app(url, TokenVerifier(ISSUER, lambda _: KEY.public_key()))
+        yield create_app(url, TokenVerifier(ISSUER, lambda _: KEY.public_key()), FakeCatalog())
 
 
 @pytest.fixture
@@ -51,7 +70,9 @@ async def client(app):
     ) as client:
         yield client
     async with app.state.sessionmaker() as session:
-        await session.execute(text("TRUNCATE daily_stats, bookings, processed_events"))
+        await session.execute(
+            text("TRUNCATE daily_stats, hourly_stats, bookings, processed_events")
+        )
         await session.commit()
 
 
@@ -66,6 +87,7 @@ def created(booking_id, price_cents=4500, starts_at=NINE_AM):
         booking_id=booking_id,
         business_id=BUSINESS,
         starts_at=starts_at,
+        ends_at=starts_at + timedelta(minutes=30),
         timezone="America/Sao_Paulo",
         price_cents=price_cents,
     )
@@ -75,6 +97,11 @@ def created(booking_id, price_cents=4500, starts_at=NINE_AM):
 def cancelled(booking_id):
     data = BookingRef(booking_id=booking_id)
     return BookingCancelled(event_id=uuid4(), type="booking.cancelled", data=data)
+
+
+def outcome(booking_id, type):
+    data = BookingRef(booking_id=booking_id)
+    return BookingOutcome(event_id=uuid4(), type=type, data=data)
 
 
 def offer(outcome, price_cents=4500):
@@ -142,3 +169,52 @@ async def test_only_owners_of_the_business_see_its_stats(client):
     stranger = await client.get(url, params=params, headers=token(str(uuid4())))
 
     assert (anonymous.status_code, stranger.status_code) == (401, 403)
+
+
+async def test_attendance_no_shows_and_occupancy_are_measured(client, session):
+    came, missed = uuid4(), uuid4()
+    for event in (
+        created(came),
+        created(missed),
+        outcome(came, "booking.completed"),
+        outcome(missed, "booking.no_show"),
+    ):
+        await apply(event, session)
+
+    [day] = await stats_of(client)
+
+    assert (day["completed"], day["no_shows"]) == (1, 1)
+    assert (day["booked_minutes"], day["capacity_minutes"]) == (60, 180)
+
+
+async def test_stats_cover_every_day_of_the_range(client, session):
+    await apply(created(uuid4()), session)
+
+    response = await client.get(
+        f"/businesses/{BUSINESS}/stats",
+        params={"from": str(DAY - timedelta(days=1)), "to": str(DAY + timedelta(days=1))},
+    )
+
+    assert [d["bookings"] for d in response.json()] == [0, 1, 0]
+    assert [d["capacity_minutes"] for d in response.json()] == [0, 180, 0]
+
+
+async def test_without_the_catalog_stats_come_without_capacity(app, client, session):
+    await apply(created(uuid4()), session)
+    app.state.catalog.available = False
+    try:
+        [day] = await stats_of(client)
+    finally:
+        app.state.catalog.available = True
+
+    assert (day["bookings"], day["capacity_minutes"]) == (1, None)
+
+
+async def test_peak_hours_follow_the_local_time_of_confirmed_bookings(client, session):
+    kept, dropped = uuid4(), uuid4()
+    for event in (created(kept), created(uuid4()), created(dropped), cancelled(dropped)):
+        await apply(event, session)
+
+    response = await client.get(f"/businesses/{BUSINESS}/peak-hours")
+
+    assert response.json() == [{"weekday": 2, "hour": 9, "bookings": 2}]
