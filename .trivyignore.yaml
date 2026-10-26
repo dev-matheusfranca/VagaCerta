@@ -1,0 +1,7 @@
+# Exceções revisadas da análise de configuração do Trivy.
+misconfigurations:
+  - id: DS-0002
+    paths: [observability/Dockerfile]
+    statement: Pacote de observabilidade de terceiros, só para desenvolvimento; a imagem base roda como root.
+  - id: DS-0026
+    statement: Os healthchecks ficam no Docker Compose e nas probes do Kubernetes, não no Dockerfile.
