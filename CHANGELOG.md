@@ -5,6 +5,13 @@ Todas as mudanças relevantes do projeto ficam registradas neste arquivo.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto usa
 [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.8.2] - 2026-10-26
+
+### Alterado
+
+- Comentários revisados no projeto todo: ficam só os que explicam um porquê que o código não mostra.
+- README mais enxuto: badges só de status, sem a lista técnica que repetia as decisões de arquitetura.
+
 ## [0.8.1] - 2026-10-26
 
 ### Adicionado
@@ -217,6 +224,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 - Testes unitários, baseados em propriedades, de integração, de concorrência e de arquitetura.
 - Docker Compose, pipeline no GitHub Actions, README e ADRs 0001 e 0002.
 
+[0.8.2]: https://github.com/dev-matheusfranca/VagaCerta/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/dev-matheusfranca/VagaCerta/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/dev-matheusfranca/VagaCerta/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/dev-matheusfranca/VagaCerta/compare/v0.6.0...v0.7.0
