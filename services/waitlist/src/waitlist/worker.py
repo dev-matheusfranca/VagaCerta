@@ -3,7 +3,9 @@ import json
 import logging
 from datetime import UTC, datetime
 
+import httpx
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
+from aiokafka.errors import KafkaError
 from opentelemetry import context, propagate, trace
 from pydantic import ValidationError
 from sqlalchemy import select
@@ -17,6 +19,7 @@ from waitlist.models import OutboxEvent
 
 Sessionmaker = async_sessionmaker[AsyncSession]
 tracer = trace.get_tracer("waitlist")
+logger = logging.getLogger(__name__)
 
 
 async def consume_cancellations(
@@ -42,8 +45,12 @@ async def consume_cancellations(
 
 async def expire_offers(sessionmaker: Sessionmaker, booking: BookingClient) -> None:
     while True:
-        async with sessionmaker() as session:
-            await saga.expire_offers(session, booking, datetime.now(UTC), OFFER_MINUTES)
+        try:
+            async with sessionmaker() as session:
+                await saga.expire_offers(session, booking, datetime.now(UTC), OFFER_MINUTES)
+        except httpx.HTTPError:
+            # O Booking fora do ar só adia a expiração: a próxima volta tenta de novo.
+            logger.warning("Booking indisponível ao expirar ofertas", exc_info=True)
         await asyncio.sleep(5)
 
 
@@ -73,8 +80,13 @@ async def publish_pending(session: AsyncSession, producer: AIOKafkaProducer) -> 
 async def relay_outbox(sessionmaker: Sessionmaker, producer: AIOKafkaProducer) -> None:
     while True:
         async with sessionmaker() as session:
-            if not await publish_pending(session, producer):
-                await asyncio.sleep(0.5)
+            try:
+                published = await publish_pending(session, producer)
+            except KafkaError:
+                logger.warning("Kafka indisponível, tentando de novo", exc_info=True)
+                published = 0
+        if not published:
+            await asyncio.sleep(0.5)
 
 
 async def main() -> None:
