@@ -300,6 +300,19 @@ services:
     image: axllent/mailpit:v1.28
     ports: ["8025:8025", "1025:1025"]
 
+  # Demonstração dos webhooks: docker compose --profile integrations up -d n8n
+  n8n:
+    image: n8nio/n8n:2.45.4
+    profiles: [integrations]
+    entrypoint: ["sh", "-c"]
+    command: >-
+      "n8n import:workflow --input=/demo/novo-agendamento.json
+      && n8n publish:workflow --id=VagaCertaDemo001 && exec n8n start"
+    environment:
+      GENERIC_TIMEZONE: America/Sao_Paulo
+      N8N_DIAGNOSTICS_ENABLED: "false"
+    volumes: ["./n8n:/demo:ro"]
+    ports: ["5678:5678"]
 
   kafka:
     image: apache/kafka:4.2.0

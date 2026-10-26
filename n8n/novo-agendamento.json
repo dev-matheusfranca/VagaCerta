@@ -1,0 +1,37 @@
+{
+  "id": "VagaCertaDemo001",
+  "name": "VagaCerta: avisar a equipe de cada agendamento",
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "nodes": [
+    {
+      "id": "7c1d3a52-0f6e-4b8a-9d21-3e5f6a7b8c90",
+      "name": "Evento do VagaCerta",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "5b0f9e7a-2c3d-4e1f-8a6b-9c0d1e2f3a4b",
+      "parameters": { "httpMethod": "POST", "path": "vagacerta", "options": {} }
+    },
+    {
+      "id": "a3e4f5d6-1b2c-4d8e-9f0a-1b2c3d4e5f60",
+      "name": "E-mail para a equipe",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 0],
+      "parameters": {
+        "method": "POST",
+        "url": "http://mailpit:8025/api/v1/send",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { From: { Email: 'n8n@vagacerta.dev', Name: 'n8n' }, To: [{ Email: 'equipe@vagacerta.dev' }], Subject: 'Novo agendamento: ' + $json.body.data.customer_name, Text: $json.body.data.customer_name + ' marcou ' + $json.body.data.service_name + ' com ' + $json.body.data.professional_name + ' em ' + DateTime.fromISO($json.body.data.starts_at).setZone($json.body.data.timezone).toFormat(\"dd/MM 'às' HH:mm\") + '.' } }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Evento do VagaCerta": {
+      "main": [[{ "node": "E-mail para a equipe", "type": "main", "index": 0 }]]
+    }
+  }
+}
