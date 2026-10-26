@@ -20,6 +20,7 @@
   <img src="https://img.shields.io/badge/Kubernetes-kind%20%2B%20Helm-326CE5?logo=kubernetes&logoColor=white" alt="Kubernetes com kind e Helm" />
   <img src="https://img.shields.io/badge/Ollama-LLM%20local-000000?logo=ollama&logoColor=white" alt="Ollama" />
   <img src="https://img.shields.io/badge/MCP-servidor-6E56CF" alt="Servidor MCP" />
+  <img src="https://img.shields.io/badge/n8n-webhooks-EA4B71?logo=n8n&logoColor=white" alt="Webhooks com n8n" />
   <img src="https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white" alt="Vue 3" />
   <img src="https://img.shields.io/badge/licen%C3%A7a-MIT-green" alt="Licença MIT" />
 </p>
@@ -86,6 +87,10 @@ O projeto evolui em fases, até uma arquitetura completa orientada a eventos. Ve
   quanto a lista de espera recuperou, dia a dia.
 - **Comparecimento:** depois do horário, o dono marca se a pessoa veio ou faltou. O painel mostra os
   últimos 30 dias: atendimentos, taxa de faltas, ocupação média e um mapa dos horários mais procurados.
+- **Histórico de cada agendamento:** clicando no nome do cliente, o dono vê tudo o que aconteceu com o
+  horário (agendado, oferecido à fila, cancelado, compareceu), num registro que não pode ser alterado.
+- **Integrações:** o dono cadastra o endereço de outro sistema (n8n, planilha, CRM) e escolhe os eventos;
+  o VagaCerta avisa a cada evento, com assinatura, novas tentativas e o status de cada entrega no painel.
 
 **Por baixo**
 
@@ -102,6 +107,10 @@ O projeto evolui em fases, até uma arquitetura completa orientada a eventos. Ve
   Catalog fora do ar, e os eventos esperam no outbox enquanto o Kafka está fora.
 - Segurança na esteira: gitleaks antes de cada commit, Trivy nas imagens, dependências e chart, e imagens
   que rodam sem root.
+- Trilha de auditoria só de inserção, com cada evento encadeado ao anterior por hash: uma adulteração
+  no banco é detectada e apontada.
+- Webhooks de saída assinados com HMAC-SHA256, entregues pelo RabbitMQ com retry e dead-letter, e
+  protegidos contra SSRF.
 - Teste de carga no CI e documentação interativa (OpenAPI/Swagger) em todos os serviços.
 
 ## Telas
@@ -122,6 +131,10 @@ O projeto evolui em fases, até uma arquitetura completa orientada a eventos. Ve
 |---|
 | <img src="docs/screenshots/painel-30-dias.png" alt="Painel com atendimentos, faltas, ocupação média e mapa de calor dos horários mais procurados" /> |
 
+| Histórico do agendamento (auditoria) | Integrações (webhooks) |
+|---|---|
+| <img src="docs/screenshots/painel-historico.png" alt="Histórico de um agendamento que veio da lista de espera, com o hash de cada evento" /> | <img src="docs/screenshots/painel-integracoes.png" alt="Card de integrações com um webhook para o n8n e as entregas" /> |
+
 | E-mail de confirmação | E-mail da lista de espera | Login (Keycloak com tema próprio) |
 |---|---|---|
 | <img src="docs/screenshots/email.png" alt="E-mail de confirmação" /> | <img src="docs/screenshots/offer-email.png" alt="E-mail de vaga liberada" /> | <img src="docs/screenshots/login.png" alt="Tela de login" /> |
@@ -140,6 +153,8 @@ flowchart LR
     gateway -->|/api/analytics| analytics["Analytics"]
     gateway -->|/api/assistant| assistant["Assistant"]
     gateway -->|/mcp| mcp["MCP server"]
+    gateway -->|/api/audit| audit["Audit"]
+    gateway -->|/api/webhooks| webhooks["Webhooks"]
     assistant -->|MCP| mcp
     assistant -->|LLM| ollama["Ollama"]
     mcp -->|REST| catalog & booking & waitlist
@@ -154,6 +169,11 @@ flowchart LR
     projector -.->|read models| analytics
     notification <-->|tarefas de e-mail| rabbitmq{{RabbitMQ}}
     notification -->|SMTP| mailpit["Mailpit"]
+    kafka --> auditor["Audit worker"]
+    auditor -.->|registro encadeado| audit
+    kafka --> dispatcher["Webhooks worker"]
+    dispatcher <-->|entregas| rabbitmq
+    dispatcher -->|HTTP assinado| n8n["n8n e outros sistemas"]
 ```
 
 Cada serviço tem o próprio banco PostgreSQL, e todos os processos enviam traces, métricas e logs para o
@@ -170,6 +190,11 @@ Grafana LGTM (omitidos no diagrama).
 | **notification** | Consome eventos, agenda lembretes e envia e-mails pelo RabbitMQ |
 | **analytics** | Números do painel por dia (API só de leitura) |
 | **analytics-worker** | Projeta os eventos de agendamento e da lista de espera nos read models |
+| **audit** | Histórico de cada agendamento e verificação da corrente de hashes (API só de leitura) |
+| **audit-worker** | Grava cada evento no registro só de inserção, encadeado ao anterior |
+| **webhooks** | Cadastro dos webhooks de cada estabelecimento e histórico das entregas |
+| **webhooks-worker** | Cria uma entrega por webhook interessado e envia pelo RabbitMQ, com assinatura e novas tentativas |
+| **n8n** | Demonstração das integrações: recebe os webhooks e manda um e-mail para a equipe (perfil `integrations`) |
 | **mcp-server** | Ferramentas MCP de agendamento: estabelecimentos, horários, agendar, lista de espera e cancelar |
 | **assistant** | Agente que conversa com o modelo e executa as ferramentas MCP que ele pede |
 | **ollama** | Roda o modelo de linguagem localmente (perfil `ai` do Compose) |
@@ -238,6 +263,10 @@ sequenceDiagram
   responde. Na falta de uma dependência, a resposta é um `503` claro ou um dado em cache, nunca um `500`.
 - **Segurança desde o commit.** Segredos são barrados antes do commit, e uma vulnerabilidade alta com
   correção numa imagem própria quebra o build.
+- **Histórico à prova de adulteração.** Cada evento é gravado com o hash do anterior, e o banco recusa
+  alteração e exclusão; a verificação aponta o primeiro registro mexido.
+- **Integração por eventos, não por código.** Os webhooks repassam os eventos a qualquer sistema, com
+  assinatura para o destino confiar no envio e checagem de endereço para não virar porta de entrada.
 
 Cada decisão está registrada numa ADR:
 
@@ -258,6 +287,9 @@ Cada decisão está registrada numa ADR:
 | [0013](docs/adr/0013-resiliencia-entre-servicos.md) | Resiliência entre serviços |
 | [0014](docs/adr/0014-qualidade-e-seguranca-na-esteira.md) | Qualidade e segurança na esteira |
 | [0015](docs/adr/0015-comparecimento-faltas-e-ocupacao.md) | Comparecimento, faltas e ocupação |
+| [0016](docs/adr/0016-trilha-de-auditoria.md) | Trilha de auditoria encadeada por hash |
+| [0017](docs/adr/0017-webhooks-de-saida.md) | Webhooks de saída |
+| [0018](docs/adr/0018-fora-do-escopo.md) | O que ficou fora do escopo |
 
 ## Tecnologias
 
@@ -271,6 +303,7 @@ Cada decisão está registrada numa ADR:
 | Banco de dados | PostgreSQL 17 (exclusion constraint com `btree_gist`, JSONB) |
 | Observabilidade | OpenTelemetry (instrumentação automática e manual), Grafana, Tempo, Prometheus e Loki (`grafana/otel-lgtm`) |
 | IA | Ollama (`qwen3:4b-instruct` por padrão), Model Context Protocol (SDK oficial em Python), atributos GenAI do OpenTelemetry |
+| Integrações | Webhooks com HMAC-SHA256, n8n para a demonstração |
 | Front-end | Vue 3, TypeScript, Vite, Tailwind CSS 4, Vue Router, ícones Lucide |
 | Testes | pytest, Testcontainers (PostgreSQL, Kafka, RabbitMQ), Pact, Hypothesis, Toxiproxy, WireMock, import-linter, k6, pytest-cov |
 | Qualidade e segurança | ruff, mypy (strict), vue-tsc, pre-commit, gitleaks, Trivy, SonarCloud |
@@ -287,6 +320,8 @@ VagaCerta/
 │   ├── booking/                # disponibilidade, agendamentos, reservas, outbox e relay
 │   ├── waitlist/               # lista de espera, ofertas e worker da saga
 │   ├── analytics/              # read models do painel e worker que projeta os eventos
+│   ├── audit/                  # trilha de auditoria encadeada por hash e worker que grava os eventos
+│   ├── webhooks/               # cadastro dos webhooks e worker que entrega os eventos
 │   ├── mcp-server/             # ferramentas MCP de agendamento
 │   ├── assistant/              # agente que conversa com o modelo no Ollama
 │   └── notification/           # consumidor de eventos, lembretes, e-mails e worker do RabbitMQ
@@ -303,6 +338,7 @@ VagaCerta/
 ├── gateway/dynamic.yml         # rotas e middlewares do Traefik
 ├── keycloak/                   # realm versionado e tema da tela de login
 ├── observability/              # dashboard do Grafana provisionado na subida
+├── n8n/                        # fluxo de demonstração dos webhooks, importado na subida do n8n
 ├── load/booking.js             # teste de carga com k6
 ├── docs/
 │   ├── adr/                    # registros de decisões de arquitetura
@@ -348,7 +384,8 @@ dados de exemplo são criados: quatro estabelecimentos e um dia lotado na Clíni
 | http://localhost:15672 | RabbitMQ: filas de e-mail, retry e dead-letter (`guest` / `guest`) |
 | http://localhost:8081 | Dashboard do Traefik |
 | http://localhost:8080/auth/admin | Console do Keycloak (`admin` / `admin`) |
-| http://localhost:8001/docs · :8002 · :8003 · :8004 · :8006 | Swagger do Catalog, Booking, Waitlist, Analytics e Assistant |
+| http://localhost:5678 | n8n (com o perfil `integrations`) |
+| http://localhost:8001/docs · :8002 · :8003 · :8004 · :8006 · :8007 · :8008 | Swagger do Catalog, Booking, Waitlist, Analytics, Assistant, Audit e Webhooks |
 
 **Usuários de demonstração** (senha `vagacerta`):
 
@@ -381,6 +418,30 @@ Em GPUs com pouca memória, `OLLAMA_FLASH_ATTENTION=1` e `OLLAMA_KV_CACHE_TYPE=q
 ambiente do Ollama reduzem pela metade a memória do cache de contexto. Outro modelo com suporte a
 ferramentas pode ser usado com `OLLAMA_MODEL`.
 
+### Com a demonstração de integrações (n8n)
+
+O n8n fica no perfil `integrations` e sobe com um fluxo já publicado, que recebe os webhooks em
+`/webhook/vagacerta` e manda um e-mail para a equipe pelo Mailpit:
+
+```bash
+docker compose --profile integrations up -d n8n
+```
+
+No painel, em **Integrações**, cadastre `http://n8n:5678/webhook/vagacerta` com o evento "Agendamento".
+A cada agendamento chega no Mailpit o e-mail "Novo agendamento", e o card mostra a entrega. Para abrir o
+fluxo no editor do n8n, crie a conta local na primeira visita a http://localhost:5678.
+
+> No Compose, os webhooks aceitam endereços da rede do Docker (`ALLOW_PRIVATE_TARGETS=true`) só para essa
+> demonstração. No chart Helm, o padrão é recusar qualquer endereço interno.
+
+Para conferir a assinatura no destino, recalcule o HMAC-SHA256 do corpo com o segredo mostrado no
+cadastro e compare com o cabeçalho `X-VagaCerta-Signature`:
+
+```python
+expected = "sha256=" + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+hmac.compare_digest(expected, request.headers["X-VagaCerta-Signature"])
+```
+
 ### No Kubernetes (kind + Helm)
 
 O script cria um cluster kind, constrói as imagens, carrega no nó e instala o chart. O gateway, o
@@ -404,7 +465,7 @@ funciona no Docker Desktop. No Docker do Linux, troque o endereço com
 Suba só a infraestrutura com Docker e rode cada processo num terminal:
 
 ```bash
-docker compose up -d catalog-db booking-db waitlist-db notification-db analytics-db kafka rabbitmq mailpit keycloak
+docker compose up -d catalog-db booking-db waitlist-db notification-db analytics-db audit-db webhooks-db kafka rabbitmq mailpit keycloak
 uv sync
 
 (cd services/catalog && uv run alembic upgrade head && uv run python -m catalog.seed)
@@ -412,6 +473,8 @@ uv sync
 (cd services/waitlist && uv run alembic upgrade head)
 (cd services/notification && uv run alembic upgrade head)
 (cd services/analytics && uv run alembic upgrade head)
+(cd services/audit && uv run alembic upgrade head)
+(cd services/webhooks && uv run alembic upgrade head)
 
 uv run uvicorn catalog.main:app --port 8001 --reload
 uv run uvicorn booking.main:app --port 8002 --reload
@@ -419,9 +482,13 @@ uv run uvicorn waitlist.main:app --port 8003 --reload
 uv run uvicorn analytics.main:app --port 8004 --reload
 uv run uvicorn mcp_server.main:app --port 8005 --reload
 uv run uvicorn assistant.main:app --port 8006 --reload
+uv run uvicorn audit.main:app --port 8007 --reload
+uv run uvicorn webhooks.main:app --port 8008 --reload
 uv run python -m booking.outbox_relay
 uv run python -m waitlist.worker
 uv run python -m analytics.worker
+uv run python -m audit.worker
+uv run python -m webhooks.worker
 uv run python -m notification
 
 npm --prefix web install
@@ -439,8 +506,8 @@ Para ver a telemetria rodando localmente, suba também o `lgtm` e troque `uv run
 | Serviço | Variável | Padrão |
 |---|---|---|
 | catalog | `DATABASE_URL` | `postgresql+asyncpg://vagacerta:vagacerta@localhost:5433/catalog` |
-| catalog, booking, analytics | `KEYCLOAK_ISSUER` | `http://localhost:8080/auth/realms/vagacerta` |
-| catalog, booking, analytics | `KEYCLOAK_JWKS_URL` | `<KEYCLOAK_ISSUER>/protocol/openid-connect/certs` |
+| catalog, booking, analytics, audit, webhooks | `KEYCLOAK_ISSUER` | `http://localhost:8080/auth/realms/vagacerta` |
+| catalog, booking, analytics, audit, webhooks | `KEYCLOAK_JWKS_URL` | `<KEYCLOAK_ISSUER>/protocol/openid-connect/certs` |
 | booking | `DATABASE_URL` | `postgresql+asyncpg://vagacerta:vagacerta@localhost:5434/booking` |
 | booking | `CATALOG_URL` | `http://localhost:8001` |
 | booking relay | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9094` |
@@ -454,11 +521,15 @@ Para ver a telemetria rodando localmente, suba também o `lgtm` e troque `uv run
 | notification | `SMTP_HOST` / `SMTP_PORT` | `localhost` / `1025` |
 | notification | `WEB_URL` | `http://localhost:8080` (usada nos links dos e-mails) |
 | analytics | `DATABASE_URL` | `postgresql+asyncpg://vagacerta:vagacerta@localhost:5437/analytics` |
+| audit | `DATABASE_URL` | `postgresql+asyncpg://vagacerta:vagacerta@localhost:5438/audit` |
+| webhooks | `DATABASE_URL` | `postgresql+asyncpg://vagacerta:vagacerta@localhost:5439/webhooks` |
+| webhooks | `RABBITMQ_URL` | `amqp://guest:guest@localhost:5672/` |
+| webhooks | `ALLOW_PRIVATE_TARGETS` | desligada; `true` aceita endereços internos (só na demonstração) |
 | mcp-server | `CATALOG_URL` / `BOOKING_URL` / `WAITLIST_URL` | `http://localhost:8001` / `:8002` / `:8003` |
 | mcp-server | `WEB_URL` | `http://localhost:8080` (usada nos links dos agendamentos) |
 | assistant | `OLLAMA_URL` / `OLLAMA_MODEL` | `http://localhost:11434` / `qwen3:4b-instruct` |
 | assistant | `MCP_URL` / `TIMEZONE` | `http://localhost:8005/mcp` / `America/Sao_Paulo` |
-| relay, waitlist, notification, analytics | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9094` |
+| relay, waitlist, notification, analytics, audit, webhooks | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9094` |
 | todos | `OTEL_SERVICE_NAME`, `OTEL_EXPORTER_OTLP_ENDPOINT` e demais `OTEL_*` | definidas no `docker-compose.yml` |
 
 ## Roteiro de demonstração
@@ -481,7 +552,11 @@ Com a stack no ar (`docker compose up --build`):
    worker da saga, reserva no Booking, Notification, RabbitMQ e o envio do e-mail.
 7. **Veja os bastidores.** Os eventos no [Kafka UI](http://localhost:8090) e as filas no
    [RabbitMQ](http://localhost:15672).
-8. **Agende conversando.** Com o perfil `ai`, abra http://localhost:8080/assistente e peça, por exemplo,
+8. **Veja o histórico.** Na agenda do painel, clique no nome de quem confirmou a oferta da fila: o
+   histórico mostra a oferta, o agendamento e a confirmação, cada passo com o seu hash.
+9. **Integre com o n8n.** Siga a [demonstração de integrações](#com-a-demonstração-de-integrações-n8n):
+   cada novo agendamento vira um e-mail para a equipe, e o card mostra as entregas.
+10. **Agende conversando.** Com o perfil `ai`, abra http://localhost:8080/assistente e peça, por exemplo,
    "quero cortar o cabelo na barbearia na terça à tarde". Entre as mensagens aparecem as ferramentas que o
    modelo usou, e o trace do `POST /chat` no Grafana mostra cada chamada ao modelo com os tokens gastos.
 
@@ -527,6 +602,25 @@ A documentação interativa completa fica em `/docs` em cada serviço.
 |---|---|---|---|
 | `GET` | `/businesses/{id}/stats?from=&to=` | `owner` do estabelecimento | Por dia: agendamentos, cancelamentos, receita, comparecimentos, faltas, minutos agendados, capacidade e ofertas da lista de espera |
 | `GET` | `/businesses/{id}/peak-hours` | `owner` do estabelecimento | Agendamentos por dia da semana e hora |
+
+### Audit — `:8007` · `/api/audit`
+
+| Método | Endpoint | Acesso | Descrição |
+|---|---|---|---|
+| `GET` | `/bookings/{id}/trail` | `owner` do estabelecimento | Eventos do agendamento em ordem, com o hash de cada um |
+| `GET` | `/verify` | `admin` | Recalcula a corrente inteira e aponta o primeiro registro adulterado |
+
+### Webhooks — `:8008` · `/api/webhooks`
+
+| Método | Endpoint | Acesso | Descrição |
+|---|---|---|---|
+| `POST` | `/businesses/{id}/webhooks` | `owner` do estabelecimento | Cadastra endereço e eventos; devolve o segredo uma única vez |
+| `GET` | `/businesses/{id}/webhooks` | `owner` do estabelecimento | Lista os webhooks, sem o segredo |
+| `DELETE` | `/businesses/{id}/webhooks/{subscription_id}` | `owner` do estabelecimento | Remove o webhook e as entregas |
+| `GET` | `/businesses/{id}/webhooks/{subscription_id}/deliveries` | `owner` do estabelecimento | Últimas 20 entregas, com status, tentativas e último código HTTP |
+
+Cada entrega é um `POST` com o evento no corpo e os cabeçalhos `X-VagaCerta-Event`,
+`X-VagaCerta-Delivery` e `X-VagaCerta-Signature` (`sha256=<HMAC do corpo>`).
 
 ### Assistant — `:8006` · `/api/assistant`
 
@@ -582,13 +676,13 @@ curl -s http://localhost:8080/auth/realms/vagacerta/protocol/openid-connect/toke
 
 | Tópico | Tipo | Publicado quando | Consumido por |
 |---|---|---|---|
-| `booking.events` | `booking.created` | Um agendamento é confirmado | Notification, Analytics |
-| `booking.events` | `booking.cancelled` | Um agendamento confirmado é cancelado | Waitlist worker, Notification, Analytics |
-| `booking.events` | `booking.completed` | O dono registra que a pessoa compareceu | Analytics |
-| `booking.events` | `booking.no_show` | O dono registra que a pessoa faltou | Analytics |
-| `waitlist.events` | `waitlist.offer_created` | Um horário é reservado para alguém da fila | Notification, Analytics |
-| `waitlist.events` | `waitlist.offer_claimed` | A pessoa da fila confirma a oferta | Analytics |
-| `waitlist.events` | `waitlist.offer_expired` | A oferta expira sem confirmação | Analytics |
+| `booking.events` | `booking.created` | Um agendamento é confirmado | Notification, Analytics, Audit, Webhooks |
+| `booking.events` | `booking.cancelled` | Um agendamento confirmado é cancelado | Waitlist worker, Notification, Analytics, Audit, Webhooks |
+| `booking.events` | `booking.completed` | O dono registra que a pessoa compareceu | Analytics, Audit, Webhooks |
+| `booking.events` | `booking.no_show` | O dono registra que a pessoa faltou | Analytics, Audit, Webhooks |
+| `waitlist.events` | `waitlist.offer_created` | Um horário é reservado para alguém da fila | Notification, Analytics, Audit, Webhooks |
+| `waitlist.events` | `waitlist.offer_claimed` | A pessoa da fila confirma a oferta | Analytics, Audit, Webhooks |
+| `waitlist.events` | `waitlist.offer_expired` | A oferta expira sem confirmação | Analytics, Audit, Webhooks |
 
 `booking.created` traz horário, cliente, estabelecimento, profissional, serviço e preço;
 `booking.cancelled`, o horário liberado; os eventos da lista de espera, os dados da oferta e o prazo. O
@@ -683,7 +777,7 @@ Conecte em `http://localhost:8080/mcp` com o transporte Streamable HTTP.
 ## Testes
 
 ```bash
-uv run pytest --cov      # 106 testes, com cobertura (os de integração sobem containers com Docker)
+uv run pytest --cov      # 131 testes, com cobertura (os de integração sobem containers com Docker)
 uv run lint-imports      # regras de arquitetura
 uv run mypy libs/*/src services/*/src
 uv run pre-commit run --all-files               # ruff, checagens de arquivos e gitleaks
@@ -705,6 +799,8 @@ helm lint deploy/helm/vagacerta                 # valida o chart
 | Projeções (CQRS) | Os read models do Analytics somam os eventos certos e ignoram reentregas |
 | Contrato (Pact) | Cada consumidor declara o que usa das APIs e dos eventos; Catalog, Booking e Waitlist verificam esses contratos contra o código real |
 | Rastreamento | O evento gravado no outbox leva o contexto do trace da requisição |
+| Auditoria | A corrente de hashes aponta o registro adulterado; o banco recusa `UPDATE`, `DELETE` e `TRUNCATE`; evento repetido não entra duas vezes |
+| Webhooks | Assinatura HMAC conferida no destino, uma entrega por webhook interessado, nova tentativa e dead-letter, e recusa de endereços internos (SSRF) |
 | Ferramentas MCP | Num cliente MCP em memória: horários no fuso do estabelecimento e erros esperados como mensagem para o modelo |
 | Agente | Com um modelo falso: o resultado das ferramentas volta para o modelo, o loop para após 8 passos e um modelo fora do ar vira `503` |
 | Kubernetes | O CI sobe tudo num cluster kind com o chart Helm e roda o teste de carga contra ele |
@@ -726,6 +822,8 @@ Os contratos ficam em [`pacts/`](pacts), um arquivo por par consumidor e provedo
 | Notification | Booking, Waitlist | `booking.created`, `booking.cancelled` e `waitlist.offer_created` |
 | Analytics | Booking, Waitlist, Catalog | Eventos de agendamento, comparecimento e oferta; expediente para calcular a ocupação |
 | MCP server | Catalog, Booking, Waitlist | Estabelecimentos, horários livres, agendamento, cancelamento e entrada na fila |
+| Audit | Booking, Waitlist | Id, tipo, data, agendamento e estabelecimento de cada evento, para montar o histórico |
+| Webhooks | Booking, Waitlist | Id, tipo, data e o estabelecimento de cada evento, para achar os webhooks interessados |
 
 Os testes dos consumidores rodam os clientes reais contra o mock do Pact e regravam os contratos. Os dos
 provedores sobem a API num PostgreSQL do Testcontainers, preparam os dados de cada *provider state* e
@@ -765,8 +863,11 @@ no Docker Desktop de uma máquina de desenvolvimento.
       Pact; serviço de Analytics com CQRS
 - [x] **Fase 5** — Kubernetes com kind e Helm; agendamento em linguagem natural com LLM local (Ollama) e
       servidor MCP
-- [ ] **Fase 6** — qualidade e segurança na esteira e resiliência entre serviços (v0.6.0);
+- [x] **Fase 6** — qualidade e segurança na esteira e resiliência entre serviços (v0.6.0);
       comparecimento, faltas e ocupação no Analytics (v0.7.0); trilha de auditoria e webhooks de saída
+      com demonstração no n8n (v0.8.0)
+
+O que ficou de fora, e por quê, está na [ADR 0018](docs/adr/0018-fora-do-escopo.md).
 
 O que mudou em cada versão está no [CHANGELOG](CHANGELOG.md).
 
