@@ -164,6 +164,41 @@ services:
       analytics: { condition: service_healthy }
       kafka: { condition: service_healthy }
 
+  audit-db:
+    <<: *postgres
+    environment:
+      POSTGRES_USER: vagacerta
+      POSTGRES_PASSWORD: vagacerta
+      POSTGRES_DB: audit
+    ports: ["5438:5432"]
+
+  audit:
+    build: &audit-build
+      context: .
+      dockerfile: services/Dockerfile
+      args: { SERVICE: audit }
+    environment: &audit-env
+      <<: *otel
+      OTEL_SERVICE_NAME: audit
+      DATABASE_URL: postgresql+asyncpg://vagacerta:vagacerta@audit-db:5432/audit
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KEYCLOAK_JWKS_URL: *jwks
+    ports: ["8007:8000"]
+    healthcheck: *api-healthcheck
+    depends_on:
+      audit-db: { condition: service_healthy }
+
+  audit-worker:
+    build: *audit-build
+    command: opentelemetry-instrument python -m audit.worker
+    restart: on-failure
+    environment:
+      <<: *audit-env
+      OTEL_SERVICE_NAME: audit-worker
+    depends_on:
+      audit: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+
   keycloak:
     build: keycloak
     command: start-dev --import-realm
@@ -338,7 +373,7 @@ services:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
       interval: 3s
       retries: 20
-    depends_on: [web, catalog, booking, waitlist, analytics, mcp-server, keycloak]
+    depends_on: [web, catalog, booking, waitlist, analytics, audit, mcp-server, keycloak]
 
   k6:
     image: grafana/k6:1.3.0

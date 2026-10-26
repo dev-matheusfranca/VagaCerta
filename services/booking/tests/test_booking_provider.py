@@ -144,6 +144,7 @@ def test_booking_honours_its_consumer_contracts(database_url, catalog, provider_
         .add_source(PACTS / "notification-booking.json")
         .add_source(PACTS / "analytics-booking.json")
         .add_source(PACTS / "mcp-server-booking.json")
+        .add_source(PACTS / "audit-booking.json")
         .add_custom_headers(token("booking-holds"))
         .state_handler(state_handler)
         .verify()

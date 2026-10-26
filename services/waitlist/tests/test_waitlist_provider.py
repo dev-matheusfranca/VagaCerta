@@ -97,6 +97,7 @@ def test_waitlist_honours_its_consumer_contracts(database_url, catalog, provider
         .add_source(PACTS / "notification-waitlist.json")
         .add_source(PACTS / "analytics-waitlist.json")
         .add_source(PACTS / "mcp-server-waitlist.json")
+        .add_source(PACTS / "audit-waitlist.json")
         .state_handler(state_handler)
         .verify()
     )
