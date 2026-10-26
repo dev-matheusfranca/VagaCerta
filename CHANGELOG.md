@@ -5,6 +5,27 @@ Todas as mudanças relevantes do projeto ficam registradas neste arquivo.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto usa
 [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.8.1] - 2026-10-26
+
+### Adicionado
+
+- Análise do SonarCloud a cada push, com badges de quality gate, cobertura, confiabilidade, segurança e
+  manutenibilidade no README.
+
+### Alterado
+
+- O código não guarda mais a senha dos bancos: a URL padrão leva só host, porta e usuário, e a senha vem
+  do `PGPASSWORD` ou da `DATABASE_URL` completa passada pelo ambiente.
+- A cobertura do SonarCloud mede os serviços Python, que são os que têm suíte de testes.
+
+### Corrigido
+
+- Campos de formulário sem rótulo para leitores de tela e botões de formulário sem `type`.
+- O `sh` ficava como processo principal dos containers e o uvicorn não recebia o SIGTERM; agora ele
+  assume o processo e encerra de forma limpa no `docker stop` e no Kubernetes.
+- A expressão que separa os links nas respostas do assistente podia fazer backtracking.
+- O template dos e-mails não tinha título.
+
 ## [0.8.0] - 2026-10-26
 
 ### Adicionado
@@ -196,6 +217,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 - Testes unitários, baseados em propriedades, de integração, de concorrência e de arquitetura.
 - Docker Compose, pipeline no GitHub Actions, README e ADRs 0001 e 0002.
 
+[0.8.1]: https://github.com/dev-matheusfranca/VagaCerta/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/dev-matheusfranca/VagaCerta/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/dev-matheusfranca/VagaCerta/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/dev-matheusfranca/VagaCerta/compare/v0.5.0...v0.6.0

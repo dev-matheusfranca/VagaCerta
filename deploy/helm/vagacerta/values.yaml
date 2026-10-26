@@ -37,7 +37,7 @@ workloads:
     image: vagacerta-catalog:latest
     securityContext: *python-restricted
     otel: true
-    command: [sh, -c, "alembic upgrade head && python -m catalog.seed && opentelemetry-instrument uvicorn catalog.main:app --host 0.0.0.0 --port 8000"]
+    command: [sh, -c, "alembic upgrade head && python -m catalog.seed && exec opentelemetry-instrument uvicorn catalog.main:app --host 0.0.0.0 --port 8000"]
     env:
       DATABASE_URL: postgresql+asyncpg://vagacerta:vagacerta@postgres:5432/catalog
       KEYCLOAK_JWKS_URL: http://keycloak:8080/auth/realms/vagacerta/protocol/openid-connect/certs
@@ -52,7 +52,7 @@ workloads:
     image: vagacerta-booking:latest
     securityContext: *python-restricted
     otel: true
-    command: [sh, -c, "alembic upgrade head && python -m booking.seed && opentelemetry-instrument uvicorn booking.main:app --host 0.0.0.0 --port 8000"]
+    command: [sh, -c, "alembic upgrade head && python -m booking.seed && exec opentelemetry-instrument uvicorn booking.main:app --host 0.0.0.0 --port 8000"]
     env:
       DATABASE_URL: postgresql+asyncpg://vagacerta:vagacerta@postgres:5432/booking
       CATALOG_URL: http://catalog:8000
@@ -106,7 +106,7 @@ workloads:
     image: vagacerta-notification:latest
     securityContext: *python-restricted
     otel: true
-    command: [sh, -c, "alembic upgrade head && opentelemetry-instrument python -m notification"]
+    command: [sh, -c, "alembic upgrade head && exec opentelemetry-instrument python -m notification"]
     env:
       DATABASE_URL: postgresql+asyncpg://vagacerta:vagacerta@postgres:5432/notification
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092

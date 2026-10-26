@@ -343,6 +343,7 @@ async function submit() {
             {{ error }}
           </p>
           <button
+            type="submit"
             :disabled="!slot || submitting"
             class="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-brand-700 py-3.5 font-bold text-white shadow-lg shadow-brand-700/25 transition hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-40"
           >

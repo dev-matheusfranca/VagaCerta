@@ -45,7 +45,7 @@ services:
       context: .
       dockerfile: services/Dockerfile
       args: { SERVICE: catalog }
-    command: sh -c "alembic upgrade head && python -m catalog.seed && opentelemetry-instrument uvicorn catalog.main:app --host 0.0.0.0 --port 8000"
+    command: sh -c "alembic upgrade head && python -m catalog.seed && exec opentelemetry-instrument uvicorn catalog.main:app --host 0.0.0.0 --port 8000"
     environment:
       <<: *otel
       OTEL_SERVICE_NAME: catalog
@@ -61,7 +61,7 @@ services:
       context: .
       dockerfile: services/Dockerfile
       args: { SERVICE: booking }
-    command: sh -c "alembic upgrade head && python -m booking.seed && opentelemetry-instrument uvicorn booking.main:app --host 0.0.0.0 --port 8000"
+    command: sh -c "alembic upgrade head && python -m booking.seed && exec opentelemetry-instrument uvicorn booking.main:app --host 0.0.0.0 --port 8000"
     environment:
       <<: *otel
       OTEL_SERVICE_NAME: booking
@@ -269,7 +269,7 @@ services:
       context: .
       dockerfile: services/Dockerfile
       args: { SERVICE: notification }
-    command: sh -c "alembic upgrade head && opentelemetry-instrument python -m notification"
+    command: sh -c "alembic upgrade head && exec opentelemetry-instrument python -m notification"
     restart: on-failure
     environment:
       <<: *otel
