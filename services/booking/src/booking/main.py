@@ -11,7 +11,7 @@ from vagacerta_auth import TokenVerifier, keycloak_verifier
 from vagacerta_http import ResilientTransport
 
 DATABASE_URL = os.environ.get(
-    "DATABASE_URL", "postgresql+asyncpg://vagacerta:vagacerta@localhost:5434/booking"
+    "DATABASE_URL", "postgresql+asyncpg://vagacerta@localhost:5434/booking"
 )
 CATALOG_URL = os.environ.get("CATALOG_URL", "http://localhost:8001")
 KEYCLOAK_ISSUER = os.environ.get("KEYCLOAK_ISSUER", "http://localhost:8080/auth/realms/vagacerta")

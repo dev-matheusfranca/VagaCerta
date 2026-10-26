@@ -1,7 +1,7 @@
 import os
 
 DATABASE_URL = os.environ.get(
-    "DATABASE_URL", "postgresql+asyncpg://vagacerta:vagacerta@localhost:5436/waitlist"
+    "DATABASE_URL", "postgresql+asyncpg://vagacerta@localhost:5436/waitlist"
 )
 CATALOG_URL = os.environ.get("CATALOG_URL", "http://localhost:8001")
 BOOKING_URL = os.environ.get("BOOKING_URL", "http://localhost:8002")

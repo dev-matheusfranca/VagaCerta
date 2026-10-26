@@ -1,7 +1,7 @@
 import os
 
 DATABASE_URL = os.environ.get(
-    "DATABASE_URL", "postgresql+asyncpg://vagacerta:vagacerta@localhost:5437/analytics"
+    "DATABASE_URL", "postgresql+asyncpg://vagacerta@localhost:5437/analytics"
 )
 KAFKA_BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:9094")
 CATALOG_URL = os.environ.get("CATALOG_URL", "http://localhost:8001")
