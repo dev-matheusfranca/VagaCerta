@@ -145,6 +145,7 @@ services:
       <<: *otel
       OTEL_SERVICE_NAME: analytics
       DATABASE_URL: postgresql+asyncpg://vagacerta:vagacerta@analytics-db:5432/analytics
+      CATALOG_URL: http://catalog:8000
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KEYCLOAK_JWKS_URL: *jwks
     ports: ["8004:8000"]
@@ -212,6 +213,9 @@ services:
 
   rabbitmq:
     image: rabbitmq:4.2-management-alpine
+    # Com o healthcheck rodando como root, ele podia criar o .erlang.cookie antes do servidor e
+    # deixá-lo ilegível para o usuário rabbitmq.
+    user: rabbitmq
     ports: ["5672:5672", "15672:15672"]
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]

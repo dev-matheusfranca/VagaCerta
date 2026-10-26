@@ -1,0 +1,109 @@
+{
+  "consumer": {
+    "name": "analytics"
+  },
+  "interactions": [
+    {
+      "description": "a request for the working hours of a business",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "a business with a professional and a service exists",
+          "params": {
+            "business_id": "711fa378-fb4e-429e-bd5e-6a3f856ab875",
+            "professional_id": "3a4b5c6d-7e8f-4901-a2b3-c4d5e6f7a8b9",
+            "service_id": "9c8b7a6d-5e4f-4321-8fed-cba987654321"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/businesses/711fa378-fb4e-429e-bd5e-6a3f856ab875"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "professionals": [
+              {
+                "working_hours": [
+                  {
+                    "end": "12:00:00",
+                    "start": "09:00:00",
+                    "weekday": 1
+                  }
+                ]
+              }
+            ]
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.professionals": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.professionals[*].working_hours": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.professionals[*].working_hours[*].end": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^\\d{2}:\\d{2}:\\d{2}$"
+                }
+              ]
+            },
+            "$.professionals[*].working_hours[*].start": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^\\d{2}:\\d{2}:\\d{2}$"
+                }
+              ]
+            },
+            "$.professionals[*].working_hours[*].weekday": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "type": "Synchronous/HTTP"
+    }
+  ],
+  "metadata": {
+    "pactRust": {
+      "ffi": "0.5.12",
+      "models": "1.3.16"
+    },
+    "pactSpecification": {
+      "version": "4.0"
+    }
+  },
+  "provider": {
+    "name": "catalog"
+  }
+}

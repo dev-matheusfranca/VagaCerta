@@ -43,19 +43,33 @@ const totals = computed(() =>
       offers: sum.offers + s.offers,
       recovered: sum.recovered + s.offers_claimed,
       recoveredRevenue: sum.recoveredRevenue + s.recovered_revenue_cents,
+      booked: sum.booked + s.booked_minutes,
+      capacity: sum.capacity + (s.capacity_minutes ?? 0),
     }),
-    { bookings: 0, cancellations: 0, revenue: 0, offers: 0, recovered: 0, recoveredRevenue: 0 },
+    {
+      bookings: 0,
+      cancellations: 0,
+      revenue: 0,
+      offers: 0,
+      recovered: 0,
+      recoveredRevenue: 0,
+      booked: 0,
+      capacity: 0,
+    },
   ),
 )
 const peak = computed(() => Math.max(1, ...(days.value ?? []).map((d) => d.booked + d.cancelled)))
 const kpis = computed(() => {
-  const { bookings, cancellations, revenue, offers, recovered, recoveredRevenue } = totals.value
+  const { bookings, cancellations, revenue, offers, recovered, recoveredRevenue, booked, capacity } =
+    totals.value
   return [
     {
       icon: CalendarCheck,
       label: 'Agendamentos confirmados',
       value: String(bookings - cancellations),
-      hint: `${bookings} feitos no período`,
+      hint: capacity
+        ? `${Math.round((booked / capacity) * 100)}% da agenda ocupada`
+        : `${bookings} feitos no período`,
     },
     {
       icon: CalendarX2,

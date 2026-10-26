@@ -23,8 +23,12 @@ class Booking(BookingIn):
 
     id: UUID
     ends_at: datetime
-    status: Literal["confirmed", "cancelled", "held", "released"]
+    status: Literal["confirmed", "cancelled", "held", "released", "completed", "no_show"]
     hold_expires_at: datetime | None
+
+
+class OutcomeIn(BaseModel):
+    outcome: Literal["completed", "no_show"]
 
 
 class Availability(BaseModel):

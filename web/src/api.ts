@@ -43,7 +43,7 @@ export interface Booking {
   ends_at: string
   customer_name: string
   customer_email: string
-  status: 'confirmed' | 'cancelled' | 'held' | 'released'
+  status: 'confirmed' | 'cancelled' | 'held' | 'released' | 'completed' | 'no_show'
 }
 
 export type NewBooking = Omit<Booking, 'id' | 'ends_at' | 'status'>
@@ -57,6 +57,16 @@ export interface DayStats {
   offers_claimed: number
   offers_expired: number
   recovered_revenue_cents: number
+  completed: number
+  no_shows: number
+  booked_minutes: number
+  capacity_minutes: number | null
+}
+
+export interface HourStats {
+  weekday: number
+  hour: number
+  bookings: number
 }
 
 export interface WaitlistEntryIn {
@@ -139,6 +149,16 @@ export const api = {
     }),
   stats: async (businessId: string, from: string, to: string) =>
     request<DayStats[]>(`/api/analytics/businesses/${businessId}/stats?from=${from}&to=${to}`, {
+      headers: await authorization(),
+    }),
+  recordOutcome: async (id: string, outcome: 'completed' | 'no_show') =>
+    request<Booking>(`/api/booking/bookings/${id}/outcome`, {
+      method: 'POST',
+      body: JSON.stringify({ outcome }),
+      headers: await authorization(),
+    }),
+  peakHours: async (businessId: string) =>
+    request<HourStats[]>(`/api/analytics/businesses/${businessId}/peak-hours`, {
       headers: await authorization(),
     }),
   claimOffer: (id: string) =>
