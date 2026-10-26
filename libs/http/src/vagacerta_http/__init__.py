@@ -7,7 +7,7 @@ SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 
 
 class CircuitOpenError(httpx.TransportError):
-    """O destino falhou demais seguidas vezes: a chamada nem sai até o circuito testar de novo."""
+    """Circuito aberto: a requisição falha sem chegar ao destino."""
 
 
 class ResilientTransport(httpx.AsyncBaseTransport):

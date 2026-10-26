@@ -1,4 +1,4 @@
-# Os contratos em pacts/ são gerados pelos testes e ficam como o Pact os escreve.
+# pacts/ é gerado pelo Pact; os hooks não reformatam esses arquivos.
 exclude: ^pacts/
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
