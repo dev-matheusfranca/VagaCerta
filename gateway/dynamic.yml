@@ -24,6 +24,10 @@ http:
       rule: PathPrefix(`/api/analytics`)
       service: analytics
       middlewares: [strip-api, security-headers]
+    audit:
+      rule: PathPrefix(`/api/audit`)
+      service: audit
+      middlewares: [strip-api, security-headers]
     assistant:
       rule: PathPrefix(`/api/assistant`)
       service: assistant
@@ -70,6 +74,9 @@ http:
     analytics:
       loadBalancer:
         servers: [{ url: http://analytics:8000 }]
+    audit:
+      loadBalancer:
+        servers: [{ url: http://audit:8000 }]
     assistant:
       loadBalancer:
         servers: [{ url: http://assistant:8000 }]

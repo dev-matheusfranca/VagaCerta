@@ -17,7 +17,7 @@ postgres:
   image: postgres:17-alpine
   user: vagacerta
   password: vagacerta
-  databases: [catalog, booking, waitlist, notification, analytics]
+  databases: [catalog, booking, waitlist, notification, analytics, audit]
   storage: 1Gi
 
 # Imagens próprias: sem root, sem escalada de privilégio e sem capabilities do Linux.
@@ -138,6 +138,28 @@ workloads:
       DATABASE_URL: postgresql+asyncpg://vagacerta:vagacerta@postgres:5432/analytics
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     waitFor: [analytics:8000, kafka:9092]
+
+  audit:
+    image: vagacerta-audit:latest
+    securityContext: *python-restricted
+    otel: true
+    env:
+      DATABASE_URL: postgresql+asyncpg://vagacerta:vagacerta@postgres:5432/audit
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KEYCLOAK_JWKS_URL: http://keycloak:8080/auth/realms/vagacerta/protocol/openid-connect/certs
+    ports: { http: 8000 }
+    readiness: *api-readiness
+    waitFor: [postgres:5432]
+
+  audit-worker:
+    image: vagacerta-audit:latest
+    securityContext: *python-restricted
+    otel: true
+    command: [opentelemetry-instrument, python, -m, audit.worker]
+    env:
+      DATABASE_URL: postgresql+asyncpg://vagacerta:vagacerta@postgres:5432/audit
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    waitFor: [audit:8000, kafka:9092]
 
   mcp-server:
     image: vagacerta-mcp-server:latest
