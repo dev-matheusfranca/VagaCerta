@@ -5,6 +5,38 @@ Todas as mudanças relevantes do projeto ficam registradas neste arquivo.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e o projeto usa
 [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.6.0] - 2026-10-26
+
+### Adicionado
+
+- pre-commit com ruff, checagens de arquivos e gitleaks, também no CI.
+- Cobertura de testes com pytest-cov e configuração do SonarCloud, que roda quando o token estiver
+  cadastrado no repositório.
+- Job de segurança no CI com o Trivy: dependências e configuração na aba *Security* do GitHub, e build
+  quebrado por vulnerabilidade alta ou crítica com correção nas imagens próprias.
+- Biblioteca `vagacerta-http`: novas tentativas com espera exponencial para consultas e circuit breaker por
+  destino, usada por Booking, Waitlist e servidor MCP.
+- Testes de resiliência com Toxiproxy e WireMock (latência e queda do Catalog) e com o Kafka pausado.
+- ADRs 0013 (resiliência entre serviços) e 0014 (qualidade e segurança na esteira).
+
+### Alterado
+
+- As imagens próprias rodam sem root e as imagens Python não levam mais o `pip`. O front usa o nginx sem
+  root e o gateway roda como usuário comum.
+- Bases atualizadas: nginx 1.30, Traefik 3.7, Keycloak 26.8 e otel-lgtm 0.38.
+- No Kubernetes, as imagens próprias rodam com `securityContext` restrito.
+- Com o Catalog fora do ar, o Booking usa o expediente em cache; sem cache, Booking e Waitlist respondem
+  `503`. As chamadas entre serviços têm timeout de 2 segundos.
+- No Docker Compose, os workers reiniciam sozinhos em caso de falha.
+- O teste de concorrência disputa o mesmo horário com 40 requisições.
+
+### Corrigido
+
+- Agendamentos simultâneos no mesmo horário podiam entrar em deadlock no PostgreSQL, devolver `500` e
+  deixar a disponibilidade lenta sob carga. Era a causa da falha intermitente no teste de carga do CI.
+- O relay do outbox e o worker da lista de espera paravam no primeiro erro do Kafka ou do Booking.
+- No Kubernetes, a probe de prontidão do gateway conferia a página do site em vez do ping do Traefik.
+
 ## [0.5.0] - 2026-10-24
 
 ### Adicionado
@@ -123,6 +155,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
 - Testes unitários, baseados em propriedades, de integração, de concorrência e de arquitetura.
 - Docker Compose, pipeline no GitHub Actions, README e ADRs 0001 e 0002.
 
+[0.6.0]: https://github.com/dev-matheusfranca/VagaCerta/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/dev-matheusfranca/VagaCerta/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/dev-matheusfranca/VagaCerta/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/dev-matheusfranca/VagaCerta/compare/v0.2.1...v0.3.0
