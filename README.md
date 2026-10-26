@@ -328,6 +328,10 @@ VagaCerta/
 | [Ollama](https://ollama.com/) | 0.40+ | Opcional: rodar o modelo do assistente na sua GPU |
 | [kind](https://kind.sigs.k8s.io/) e [Helm](https://helm.sh/) | 0.33+ e 4+ | Opcional: rodar no Kubernetes |
 
+> **Memória:** a stack completa ocupa cerca de 4 GB. No Docker Desktop, reserve pelo menos 6 GB em
+> *Settings → Resources* e deixe folga na máquina; com menos, tudo funciona, mas fica lento. O assistente
+> de IA soma o tamanho do modelo (cerca de 2,5 GB), e o n8n, mais 300 MB.
+
 ### Com Docker (recomendado)
 
 ```bash
